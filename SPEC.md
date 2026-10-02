@@ -98,6 +98,25 @@ neither CR nor SVG — it takes cells and returns coordinates.
 - Depth is computed over all cells, so an edge between groups still points
   the right way.
 
+### Packed layout — the status monitor
+
+`layout => 'packed'` is for a wall screen: every Comb visible at once, as one
+compact honeycomb, so that anything not green stands out immediately.
+
+- Dependencies play no part in placement: cells are sorted by
+  `namespace/name` and fill the rows left to right, top to bottom. A cell
+  keeps its place as long as the set of Combs is the same — phases changing
+  never moves anything.
+- The grid is chosen by the caller, in this order of precedence:
+  `columns` (cells per row), else `rows` (number of rows; columns follow from
+  the cell count), else `aspect` (width divided by height of the target area,
+  for example `16/9`; the column count whose honeycomb comes closest to that
+  shape is used). With none of the three, `aspect` defaults to `16/9`.
+- Groups still work when `group_label` is set: each group is its own packed
+  block. Without it there is one block.
+- Edges default to off in packed layout (`edges => 1` turns them back on).
+- The default `layout` stays `'depth'` (rows by dependency depth, as above).
+
 ## 6. The picture
 
 - Root `<svg>` with `xmlns`, a `viewBox` and no fixed pixel size — it scales
@@ -126,6 +145,24 @@ Default colours (overridable through `theme`): Running green, Pending amber,
 Blocked orange, NeedsConfig violet, Disabled grey, Error red, Unknown slate.
 Text must stay readable on every fill in both light and dark mode.
 
+**Theme.** A `theme` value is either one colour, used in light and dark, or a
+hash `{ light => ..., dark => ... }`. Besides the phases, the keys `bg`, `fg`,
+`muted`, `border` and `edge` recolour the picture's own surfaces, so it can
+match the page or screen it sits on. Only plain colour syntax is accepted
+(hex, `rgb()`/`hsl()`, a colour name); anything else falls back to the default.
+
+**Blink.** `blink => [ 'Error', 'Blocked' ]` makes the cells of those phases
+pulse, through a CSS animation inside the SVG's own `<style>` — no script.
+`blink_seconds` (default `1.2`) sets the period. Inside
+`@media (prefers-reduced-motion: reduce)` the animation is off and the cell
+gets a thicker outline instead, so the signal survives without motion.
+
+**Styling from outside.** When the SVG is inlined into a page, that page's CSS
+can restyle it: every colour is a custom property (`--comb-running`,
+`--comb-error`, ... `--comb-bg`) on the root element, and every cell carries
+`class="comb phase-<phase>"`. The property and class names are part of the
+public interface and documented in the POD.
+
 ## 7. Options
 
 | Option | Default | Meaning |
@@ -133,12 +170,17 @@ Text must stay readable on every fill in both light and dark mode.
 | `combs` | required | the CRs, see §3 |
 | `title` | `Combs` | SVG `<title>` and the heading |
 | `group_label` | none | label key that names a cell's group |
-| `columns` | `6` | cells per row before wrapping |
+| `layout` | `depth` | `depth` (rows by dependency depth) or `packed` (§5, status monitor) |
+| `columns` | `6` | cells per row; in `depth` layout a longer row wraps |
+| `rows` | none | `packed` only: number of rows, when `columns` is not given |
+| `aspect` | `16/9` | `packed` only: target width/height, when neither `columns` nor `rows` is given |
 | `size` | `56` | hexagon radius in SVG units |
-| `edges` | `1` | draw dependency edges |
+| `edges` | `1`, `0` in `packed` | draw dependency edges |
 | `legend` | `1` | draw the legend |
 | `link` | none | coderef `($cell) → href or undef` |
-| `theme` | built in | hash `phase → colour`, merged over the defaults |
+| `theme` | built in | hash `phase or surface → colour` or `→ { light, dark }`, merged over the defaults |
+| `blink` | none | phases whose cells pulse |
+| `blink_seconds` | `1.2` | period of the pulse |
 
 ## 8. Escaping
 
@@ -151,6 +193,7 @@ contexts — is XML-escaped wherever it lands: text, `<title>`, attributes. A
 
     kubectl get combs -A -o json | comb-svg --group-label app.kubernetes.io/part-of > combs.svg
     comb-svg combs.json --title "Lab" --columns 4 --no-legend
+    comb-svg combs.json --layout packed --aspect 16:9 --blink Error,Blocked --color Error=#ff0033
 
 Reads a `List`, an array of CRs or one CR; writes the SVG to stdout. Bad JSON
 or an element without `metadata.name` → message on stderr, exit 1.
