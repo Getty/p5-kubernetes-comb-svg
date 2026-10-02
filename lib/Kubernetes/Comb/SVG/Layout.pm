@@ -37,7 +37,7 @@ sub heading_height { $_[0]->size * 0.6 }
 sub heading_baseline { $_[0]->size * 0.4 }
 
 # Between the lowest hexagon of a group and the heading band of the next.
-sub group_gap { $_[0]->size * 0.6 }
+sub group_gap { $_[0]->size * 0.35 }
 
 #### Layout
 

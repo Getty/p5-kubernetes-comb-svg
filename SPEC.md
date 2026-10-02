@@ -115,9 +115,10 @@ neither CR nor SVG — it takes cells and returns coordinates.
   line naming the upstream context.
 - **Disabled**: muted fill and text.
 - **Edges**: one `<path class="dep">` per dependency, from the dependent cell
-  to its dependency, with an arrowhead at the dependency. Edges are drawn over
-  the hexagon fills and under the text, thin and half transparent, so a long
-  edge crossing other cells stays visible without hiding their labels.
+  to its dependency, with an arrowhead at the dependency. Edges are thin and half transparent
+  and are drawn before the cells; hexagon fills are translucent, so a long
+  edge crossing other cells stays visible through their fills and under
+  their labels — while each cell stays one `<g>`.
 - **Legend**: the phases that occur, with their colours and counts.
 - With a `link` callback, a cell is wrapped in `<a href="...">`.
 

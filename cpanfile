@@ -9,4 +9,5 @@ on test => sub {
   requires 'JSON::MaybeXS';
   requires 'Path::Tiny';
   requires 'Test::More';
+  requires 'XML::LibXML';
 };

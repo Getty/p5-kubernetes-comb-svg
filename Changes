@@ -11,3 +11,7 @@ Revision history for Kubernetes-Comb-SVG
  - Kubernetes::Comb::SVG::Layout places cells in groups (by name, unnamed
    last), in rows by dependency depth over all cells, on a pointy-top
    honeycomb that wraps at the column limit; dependency cycles share a row.
+ - Kubernetes::Comb::SVG->render draws the honeycomb: phase-coloured hexagons,
+   borrowed and disabled states, dependency edges routed through the label-free
+   corners (cycles in a row bow in opposite directions), legend, link callback,
+   theme, light and dark colour schemes.

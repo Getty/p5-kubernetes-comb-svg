@@ -1,0 +1,7 @@
+[
+  { "metadata": { "name": "with-context" },
+    "status": { "phase": "Running", "upstream": { "context": "prod", "via": [ "prod" ] } } },
+  { "metadata": { "name": "no-context" },
+    "status": { "phase": "Running", "upstream": { "reachable": true } } },
+  { "metadata": { "name": "own" }, "status": { "phase": "Running" } }
+]
