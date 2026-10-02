@@ -1,0 +1,43 @@
+---
+claimed_at: 2026-10-02T02:11:47Z
+claimed_by: comb-svg-cards
+class: standard
+completed: 2026-10-02T02:11:47Z
+created: 2026-10-02T01:43:55Z
+id: 1
+priority: high
+started: 2026-10-02T02:04:34Z
+status: done
+tags:
+- lib
+- cell
+title: 'Cell: normalise a Comb CR into a cell'
+updated: 2026-10-02T02:11:47Z
+---
+
+SPEC §3, §4. Kubernetes::Comb::SVG::Cell with from_cr: accepts a CR-shaped hash or an object answering TO_JSON. Fields: name, namespace, class, phase (unknown string -> Unknown, original kept), enabled (false -> Disabled), depends_on, endpoints, borrowed + upstream context/via, group (from the configured label key), message (condition message when not Running). Missing status is fine; missing metadata.name is the only error. The facade's input handling (array, List with items, single CR) belongs here too. Tests with JSON fixtures under t/data/ for every row of the §3 table.
+
+2026-10-02 02:08 Decisions in Cell (SPEC left them open):
+- Unknown phase: phase is 'Unknown', the status.phase string is kept in raw_phase (undef when absent). Phases match exactly, case-sensitive.
+- spec.enabled is tri-state as in the CRD: unset/null = on; JSON false, 0, '' and the string 'false' = off. Off wins over any status.phase (phase Disabled, raw_phase keeps the status value).
+- message: every non-empty string in status.conditions[].message, in condition order, duplicates dropped, joined with newline; undef while phase is Running. No filtering by condition status.
+- endpoints: [{ name, port }], port as string or undef; entries without a string name are dropped.
+- borrowed: status.upstream is a non-empty hash. null, {} or a non-hash is not borrowed. upstream_context is a string or undef, upstream_via an array of strings (CRD: via is [Str]).
+- dependsOn / via given as one string count as a one-element list; duplicates dropped, order kept. A self-reference is kept (cycle handling is Layout's).
+- Nested objects answering TO_JSON are unwrapped at every level read (bounded, a TO_JSON returning itself cannot hang).
+- cells_from(input, opts): array, hash with an items key (non-array items = empty), any other hash = one CR, undef = no cells. Returns a list in input order. Duplicate name: the first is kept, later ones dropped silently - identity is metadata.name per SPEC, and data-name must stay unique.
+- Error: croak 'Kubernetes::Comb::SVG::Cell->from_cr: Comb without metadata.name' - also for an empty or non-string name and for an element that is not a CR at all. No element index in the message.
+- cpanfile: Carp, Scalar::Util (runtime); JSON::MaybeXS, Path::Tiny (test).
+
+2026-10-02 02:08 Also found (not fixed, outside this card), from the sibling tree ../p5-kubernetes-comb (0.002, unreleased):
+- CombStatus documents two more phases, Stopped and NotDeployed. SPEC §3 lists six; Cell follows the SPEC, so both come out as Unknown with the text in raw_phase. SPEC decision for the maintainer.
+- spec.dependsOn entries may be 'namespace/name', not only 'name'. Cell carries the string untouched; with identity = metadata.name such an entry will look like an unknown dependency in Layout. Together with 'kubectl get combs -A' (same name in two namespaces, where cells_from now keeps only the first) this is one open question: is identity name or namespace/name? Needs a SPEC answer before Layout resolves edges.
+- karr: edit without --claim was refused ('claimed by comb-svg-cards') although karr agent-name prints comb-svg-cards; --claim comb-svg-cards works.
+
+2026-10-02 02:08 Done: lib/Kubernetes/Comb/SVG/Cell.pm (from_cr, cells_from, known_phases, is_known_phase) with t/10-cell.t and 18 fixtures under t/data/cell/ (one per SPEC §3 row plus odd data, List, no-name). Verified: prove -lr t/ -> Files=2, Tests=18, PASS; the real Kubernetes::Comb::CRD::Comb subtest ran (not skipped) on this host. Not committed. Public API still needs POD polish (pod-writer).
+
+Coordinator review: identity must be namespace/name — SPEC §9 itself pipes 'kubectl get combs -A', and Kubernetes::Comb allows dependsOn entries as name or namespace/name; identity = metadata.name would drop same-named Combs and lose edges. SPEC §3 got an 'Identity' paragraph (the one SPEC change so far). Stopped/NotDeployed stay Unknown (raw text in tooltip) — SPEC lists six phases; left as an open point for the maintainer.
+
+2026-10-02 02:11 Done (identity follow-up, SPEC §3 Identity): Cell gains id (namespace/name, or name without a namespace; lazy, not a constructor argument), dependencies (ids of cells in the set, dependsOn order, deduped, self-reference kept) and missing (raw entries matching no cell or several). cells_from dedupes by id (first kept) and resolves over the whole set via private writers (rwp, init_arg undef); from_cr/new alone leave both empty. depends_on stays raw. An entry containing '/' is only ever an id lookup; a bare name is own namespace (for a cell without namespace: the cell without namespace), else the only cell of that name. Fixtures identity.json, identity-no-namespace.json; list.json's duplicate now shares the id one/db (it was name-only before). POD skeleton updated. Verified: prove -lr t/ -> Files=2, Tests=20, PASS; real CR subtest ran, nothing skipped. Not committed.
+
+2026-10-02 02:11 Committed as 73e965f
