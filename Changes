@@ -13,8 +13,12 @@ Revision history for Kubernetes-Comb-SVG
    honeycomb that wraps at the column limit; dependency cycles share a row.
  - Kubernetes::Comb::SVG->render draws the honeycomb: phase-coloured hexagons,
    borrowed and disabled states, dependency edges routed through the label-free
-   corners (cycles in a row bow in opposite directions), legend, link callback,
+   corners (cycles in a row bow in opposite directions) and starting at a small
+   dot just inside the dependent's outline, legend, link callback,
    theme, light and dark colour schemes.
+ - examples/demo.pl renders examples/demo.json (fifteen Combs in two groups,
+   every phase, a borrowed and a disabled Comb) to examples/demo.svg, the
+   picture the README shows; a test fails when the committed picture is stale.
  - bin/comb-svg renders Comb custom resources from a JSON file or standard
    input (a List, an array or one resource) to an SVG on standard output, with
    --title, --group-label, --columns, --size, --no-edges and --no-legend. Bad

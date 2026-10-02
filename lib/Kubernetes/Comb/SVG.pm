@@ -141,6 +141,7 @@ sub _style {
     $s.' .dep{fill:none;stroke:var(--comb-edge);stroke-opacity:.5;stroke-width:'
       .$self->_n( $r * 0.025 ).';stroke-linecap:round;pointer-events:none}',
     $s.' .arrow{fill:var(--comb-edge);fill-opacity:.5}',
+    $s.' .dep-start{fill:var(--comb-edge);fill-opacity:.5;pointer-events:none}',
     $s.' a{cursor:pointer;text-decoration:none}',
     $s.' .legend text{font-size:'.$self->_n( $self->_legend_font ).'px;fill:var(--comb-muted)}',
     $s.' .legend .hex{stroke-width:'.$self->_n( $r * 0.02 ).'}',
@@ -177,6 +178,9 @@ sub _legend_gap { $_[0]->size * 0.5 }
 sub _name_pad { $_[0]->size * 0.14 }
 
 sub _arrow { $_[0]->size * 0.16 }
+
+# Radius of the dot that marks where an edge starts.
+sub _start_dot { $_[0]->size * 0.04 }
 
 # Text is not measured, it is estimated: this share of the font size per
 # character. Good enough for a system sans, and the same on every machine.
@@ -473,8 +477,8 @@ sub _comb {
 # One dependency, dependent to dependency, drawn between the label-free
 # corner regions of its two ends: the name, phase and upstream lines fill the
 # middle band of a hexagon, the regions towards its top and bottom corner are
-# free. The line starts well inside the dependent and its arrowhead ends
-# inside the dependency.
+# free. The line starts at a dot just inside the outline of the dependent and
+# its arrowhead ends inside the dependency.
 #
 # Across rows it is a straight line from the corner region facing the
 # dependency into the corner region facing the dependent. Inside one row it
@@ -493,13 +497,13 @@ sub _edge {
     my $side  = -$along;
     my $steps = abs($dx) / $self->_layouter->step_x;
     $steps = 3 if $steps > 3;
-    @a   = ( $from->[0] + $along * $r * 0.3, $from->[1] + $side * $r * 0.5 );
+    @a   = ( $from->[0] + $along * $r * 0.3, $from->[1] + $side * $r * 0.62 );
     @b   = ( $to->[0] - $along * $r * 0.35,  $to->[1] + $side * $r * 0.55 );
     @via = ( ( $a[0] + $b[0] ) / 2, $from->[1] + $side * $r * ( 0.9 + 0.15 * $steps ) );
   }
   else {
     my $side = $dy > 0 ? 1 : -1;
-    @a = ( $from->[0] + $self->_clamp( $dx * 0.3, $r * 0.2 ), $from->[1] + $side * $r * 0.46 );
+    @a = ( $from->[0] + $self->_clamp( $dx * 0.3, $r * 0.2 ), $from->[1] + $side * $r * 0.62 );
     @b = ( $to->[0] - $self->_clamp( $dx * 0.3, $r * 0.3 ),   $to->[1] - $side * $r * 0.6 );
   }
 
@@ -509,7 +513,13 @@ sub _edge {
   my $angle = atan2( $b[1] - $last[1], $b[0] - $last[0] );
   my @end   = ( $b[0] - cos($angle) * $self->_arrow, $b[1] - sin($angle) * $self->_arrow );
 
-  my $d = 'M'.$self->_n( $a[0] ).' '.$self->_n( $a[1] )
+  # @a is the centre of the start dot; the line leaves it at its rim, so the
+  # two translucent shapes do not overlap.
+  my @first = @via ? @via : @end;
+  my $out   = atan2( $first[1] - $a[1], $first[0] - $a[0] );
+  my @start = ( $a[0] + cos($out) * $self->_start_dot, $a[1] + sin($out) * $self->_start_dot );
+
+  my $d = 'M'.$self->_n( $start[0] ).' '.$self->_n( $start[1] )
     .( @via ? 'Q'.$self->_n( $via[0] ).' '.$self->_n( $via[1] ).' ' : 'L' )
     .$self->_n( $end[0] ).' '.$self->_n( $end[1] );
   return $self->_el( 'path', [
@@ -518,6 +528,11 @@ sub _edge {
     'data-to'    => $edge->{to},
     d            => $d,
     'marker-end' => 'url(#comb-arrow)'
+  ] ).$self->_el( 'circle', [
+    class => 'dep-start',
+    cx    => $self->_n( $a[0] ),
+    cy    => $self->_n( $a[1] ),
+    r     => $self->_n( $self->_start_dot )
   ] );
 }
 

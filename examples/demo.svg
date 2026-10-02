@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 672.37 540.61" role="img" class="comb-svg" aria-labelledby="comb-title comb-desc">
+<title id="comb-title">Shop</title>
+<desc id="comb-desc">15 Combs: 10 Running, 1 Pending, 1 Blocked, 1 NeedsConfig, 1 Disabled, 1 Error</desc>
+<style>.comb-svg{--comb-bg:#ffffff;--comb-border:#d0d7de;--comb-fg:#1f2328;--comb-muted:#59636e;--comb-edge:#57606a;--comb-running:#1a7f37;--comb-pending:#bf8700;--comb-blocked:#bc4c00;--comb-needsconfig:#8250df;--comb-disabled:#8c959f;--comb-error:#cf222e;--comb-unknown:#475569;--comb-tint:.13;--comb-tint-muted:.06;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif}
+@media (prefers-color-scheme:dark){.comb-svg{--comb-bg:#0d1117;--comb-border:#30363d;--comb-fg:#e6edf3;--comb-muted:#9198a1;--comb-edge:#9198a1;--comb-running:#3fb950;--comb-pending:#e3b341;--comb-blocked:#fb8f44;--comb-needsconfig:#a371f7;--comb-disabled:#6e7681;--comb-error:#f85149;--comb-unknown:#94a3b8;--comb-tint:.2;--comb-tint-muted:.09}}
+.comb-svg .panel{fill:var(--comb-bg);stroke:var(--comb-border);stroke-width:1}
+.comb-svg text{fill:var(--comb-fg)}
+.comb-svg .heading{font-size:19.04px;font-weight:600}
+.comb-svg .group-name{font-size:11.2px;font-weight:600;fill:var(--comb-muted)}
+.comb-svg .group-rule{stroke:var(--comb-border);stroke-width:1}
+.comb-svg .hex{fill:var(--comb-unknown);fill-opacity:var(--comb-tint);stroke:var(--comb-unknown);stroke-width:1.68;stroke-linejoin:round}
+.comb-svg .phase-Running .hex{fill:var(--comb-running);stroke:var(--comb-running)}
+.comb-svg .phase-Pending .hex{fill:var(--comb-pending);stroke:var(--comb-pending)}
+.comb-svg .phase-Blocked .hex{fill:var(--comb-blocked);stroke:var(--comb-blocked)}
+.comb-svg .phase-NeedsConfig .hex{fill:var(--comb-needsconfig);stroke:var(--comb-needsconfig)}
+.comb-svg .phase-Disabled .hex{fill:var(--comb-disabled);stroke:var(--comb-disabled)}
+.comb-svg .phase-Error .hex{fill:var(--comb-error);stroke:var(--comb-error)}
+.comb-svg .phase-Unknown .hex{fill:var(--comb-unknown);stroke:var(--comb-unknown)}
+.comb-svg .borrowed .hex{stroke-dasharray:6.16 4.48}
+.comb-svg .disabled .hex{fill-opacity:var(--comb-tint-muted);stroke-opacity:.55}
+.comb-svg .comb text{text-anchor:middle}
+.comb-svg .name{font-size:12.32px;font-weight:500}
+.comb-svg .phase{font-size:9.52px;fill:var(--comb-muted)}
+.comb-svg .upstream{font-size:8.4px;font-style:italic;fill:var(--comb-muted)}
+.comb-svg .disabled text{fill:var(--comb-muted);fill-opacity:.8}
+.comb-svg .dep{fill:none;stroke:var(--comb-edge);stroke-opacity:.5;stroke-width:1.4;stroke-linecap:round;pointer-events:none}
+.comb-svg .arrow{fill:var(--comb-edge);fill-opacity:.5}
+.comb-svg .dep-start{fill:var(--comb-edge);fill-opacity:.5;pointer-events:none}
+.comb-svg a{cursor:pointer;text-decoration:none}
+.comb-svg .legend text{font-size:10.64px;fill:var(--comb-muted)}
+.comb-svg .legend .hex{stroke-width:1.12}
+.comb-svg .legend .count{font-weight:600;fill:var(--comb-fg)}</style>
+<defs><marker id="comb-arrow" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="8.96" markerHeight="8.96" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow" d="M0 1L10 5L0 9z"/></marker></defs>
+<rect class="panel" x="0.5" y="0.5" width="671.37" height="539.61" rx="12.32"/>
+<text class="heading" x="25.2" y="40.43">Shop</text>
+<g class="group" data-group="platform"><text class="group-name" x="25.2" y="89.6">platform</text><line class="group-rule" x1="87.02" y1="85.68" x2="647.17" y2="85.68"/></g>
+<g class="group" data-group="shop"><text class="group-name" x="25.2" y="254.8">shop</text><line class="group-rule" x1="60.59" y1="250.88" x2="647.17" y2="250.88"/></g>
+<g class="deps"><path class="dep" data-from="shop/api" data-to="shop/auth" d="M113.31 376.73L96.16 361.54" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="114.99" cy="378.21" r="2.24"/><path class="dep" data-from="shop/auth" data-to="platform/cache" d="M73.7 285.04L73.7 199.36" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="73.7" cy="287.28" r="2.24"/><path class="dep" data-from="shop/auth" data-to="platform/db" d="M86.29 285.53L156.32 197.41" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="84.9" cy="287.28" r="2.24"/><path class="dep" data-from="shop/cart" data-to="shop/catalog" d="M218.31 376.73L201.15 361.54" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="219.99" cy="378.21" r="2.24"/><path class="dep" data-from="shop/catalog" data-to="platform/db" d="M178.69 285.04L178.69 199.36" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="178.69" cy="287.28" r="2.24"/><path class="dep" data-from="shop/catalog" data-to="platform/search" d="M191.87 286.23L363.97 194.61" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="189.89" cy="287.28" r="2.24"/><path class="dep" data-from="shop/mailer" data-to="platform/nats" d="M283.69 285.04L283.69 199.36" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="283.69" cy="287.28" r="2.24"/><path class="dep" data-from="shop/media" data-to="platform/storage" d="M401.27 285.53L471.31 197.41" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="399.88" cy="287.28" r="2.24"/><path class="dep" data-from="shop/newsletter" data-to="shop/mailer" d="M323.3 376.73L306.15 361.54" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="324.98" cy="378.21" r="2.24"/><path class="dep" data-from="shop/orders" data-to="shop/payments" d="M454.06 376.73L471.22 361.54" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="452.38" cy="378.21" r="2.24"/><path class="dep" data-from="shop/payments" data-to="platform/vault" d="M506.27 285.53L576.3 197.41" marker-end="url(#comb-arrow)"/><circle class="dep-start" cx="504.88" cy="287.28" r="2.24"/></g>
+<g class="comb phase-Running" data-name="cache" data-id="platform/cache" data-phase="Running"><title>platform/cache
+namespace: platform
+class: MyApp::Comb::Cache
+phase: Running
+endpoint: redis 6379</title><polygon class="hex" points="73.7,100.8 122.2,128.8 122.2,184.8 73.7,212.8 25.2,184.8 25.2,128.8"/><text class="name" x="73.7" y="152.88">cache</text><text class="phase" x="73.7" y="169.68">Running</text></g>
+<g class="comb phase-Running borrowed" data-name="db" data-id="platform/db" data-phase="Running"><title>platform/db
+namespace: platform
+class: MyApp::Comb::Postgres
+phase: Running
+endpoint: postgres 5432
+upstream: shared
+via: shared</title><polygon class="hex" points="178.69,100.8 227.19,128.8 227.19,184.8 178.69,212.8 130.19,184.8 130.19,128.8"/><text class="name" x="178.69" y="147.28">db</text><text class="phase" x="178.69" y="164.08">Running</text><text class="upstream" x="178.69" y="178.08">from shared</text></g>
+<g class="comb phase-Running" data-name="nats" data-id="platform/nats" data-phase="Running"><title>platform/nats
+namespace: platform
+class: MyApp::Comb::NATS
+phase: Running
+endpoint: client 4222
+endpoint: monitor 8222</title><polygon class="hex" points="283.69,100.8 332.19,128.8 332.19,184.8 283.69,212.8 235.19,184.8 235.19,128.8"/><text class="name" x="283.69" y="152.88">nats</text><text class="phase" x="283.69" y="169.68">Running</text></g>
+<g class="comb phase-Running" data-name="search" data-id="platform/search" data-phase="Running"><title>platform/search
+namespace: platform
+class: MyApp::Comb::Search
+phase: Running
+endpoint: http 9200</title><polygon class="hex" points="388.68,100.8 437.18,128.8 437.18,184.8 388.68,212.8 340.18,184.8 340.18,128.8"/><text class="name" x="388.68" y="152.88">search</text><text class="phase" x="388.68" y="169.68">Running</text></g>
+<g class="comb phase-Running" data-name="storage" data-id="platform/storage" data-phase="Running"><title>platform/storage
+namespace: platform
+class: MyApp::Comb::ObjectStore
+phase: Running
+endpoint: s3 9000
+endpoint: console 9001</title><polygon class="hex" points="493.68,100.8 542.18,128.8 542.18,184.8 493.68,212.8 445.18,184.8 445.18,128.8"/><text class="name" x="493.68" y="152.88">storage</text><text class="phase" x="493.68" y="169.68">Running</text></g>
+<g class="comb phase-Running" data-name="vault" data-id="platform/vault" data-phase="Running"><title>platform/vault
+namespace: platform
+class: MyApp::Comb::Vault
+phase: Running
+endpoint: api 8200</title><polygon class="hex" points="598.67,100.8 647.17,128.8 647.17,184.8 598.67,212.8 550.17,184.8 550.17,128.8"/><text class="name" x="598.67" y="152.88">vault</text><text class="phase" x="598.67" y="169.68">Running</text></g>
+<g class="comb phase-Running" data-name="auth" data-id="shop/auth" data-phase="Running"><title>shop/auth
+namespace: shop
+class: MyApp::Comb::Auth
+phase: Running
+endpoint: http 8080</title><polygon class="hex" points="73.7,266 122.2,294 122.2,350 73.7,378 25.2,350 25.2,294"/><text class="name" x="73.7" y="318.08">auth</text><text class="phase" x="73.7" y="334.88">Running</text></g>
+<g class="comb phase-Error" data-name="catalog" data-id="shop/catalog" data-phase="Error"><title>shop/catalog
+namespace: shop
+class: MyApp::Comb::Catalog
+phase: Error
+message: migration 0042_add_sku failed: column &quot;sku&quot; of relation &quot;product&quot; already exists</title><polygon class="hex" points="178.69,266 227.19,294 227.19,350 178.69,378 130.19,350 130.19,294"/><text class="name" x="178.69" y="318.08">catalog</text><text class="phase" x="178.69" y="334.88">Error</text></g>
+<g class="comb phase-NeedsConfig" data-name="mailer" data-id="shop/mailer" data-phase="NeedsConfig"><title>shop/mailer
+namespace: shop
+class: MyApp::Comb::Mailer
+phase: NeedsConfig
+message: secret mailer-smtp has no key &quot;password&quot;</title><polygon class="hex" points="283.69,266 332.19,294 332.19,350 283.69,378 235.19,350 235.19,294"/><text class="name" x="283.69" y="318.08">mailer</text><text class="phase" x="283.69" y="334.88">NeedsConfig</text></g>
+<g class="comb phase-Pending" data-name="media" data-id="shop/media" data-phase="Pending"><title>shop/media
+namespace: shop
+class: MyApp::Comb::Media
+phase: Pending
+message: rollout in progress: 1 of 3 replicas ready
+endpoint: http 8080</title><polygon class="hex" points="388.68,266 437.18,294 437.18,350 388.68,378 340.18,350 340.18,294"/><text class="name" x="388.68" y="318.08">media</text><text class="phase" x="388.68" y="334.88">Pending</text></g>
+<g class="comb phase-Running" data-name="payments" data-id="shop/payments" data-phase="Running"><title>shop/payments
+namespace: shop
+class: MyApp::Comb::Payments
+phase: Running
+endpoint: http 8080</title><polygon class="hex" points="493.68,266 542.18,294 542.18,350 493.68,378 445.18,350 445.18,294"/><text class="name" x="493.68" y="318.08">payments</text><text class="phase" x="493.68" y="334.88">Running</text></g>
+<g class="comb phase-Running" data-name="api" data-id="shop/api" data-phase="Running"><title>shop/api
+namespace: shop
+class: MyApp::Comb::API
+phase: Running
+endpoint: http 8080
+endpoint: metrics 9090</title><polygon class="hex" points="126.19,356.93 174.69,384.93 174.69,440.93 126.19,468.93 77.69,440.93 77.69,384.93"/><text class="name" x="126.19" y="409.01">api</text><text class="phase" x="126.19" y="425.81">Running</text></g>
+<g class="comb phase-Blocked" data-name="cart" data-id="shop/cart" data-phase="Blocked"><title>shop/cart
+namespace: shop
+class: MyApp::Comb::Cart
+phase: Blocked
+message: waiting for catalog (Error)</title><polygon class="hex" points="231.19,356.93 279.69,384.93 279.69,440.93 231.19,468.93 182.69,440.93 182.69,384.93"/><text class="name" x="231.19" y="409.01">cart</text><text class="phase" x="231.19" y="425.81">Blocked</text></g>
+<g class="comb phase-Disabled disabled" data-name="newsletter" data-id="shop/newsletter" data-phase="Disabled"><title>shop/newsletter
+namespace: shop
+class: MyApp::Comb::Newsletter
+phase: Disabled</title><polygon class="hex" points="336.18,356.93 384.68,384.93 384.68,440.93 336.18,468.93 287.68,440.93 287.68,384.93"/><text class="name" x="336.18" y="409.01">newsletter</text><text class="phase" x="336.18" y="425.81">Disabled</text></g>
+<g class="comb phase-Running" data-name="orders" data-id="shop/orders" data-phase="Running"><title>shop/orders
+namespace: shop
+class: MyApp::Comb::Orders
+phase: Running
+endpoint: http 8080</title><polygon class="hex" points="441.18,356.93 489.68,384.93 489.68,440.93 441.18,468.93 392.68,440.93 392.68,384.93"/><text class="name" x="441.18" y="409.01">orders</text><text class="phase" x="441.18" y="425.81">Running</text></g>
+<g class="legend"><g class="legend-item phase-Running" data-phase="Running" data-count="10"><polygon class="hex" points="33.6,496.93 40.87,501.13 40.87,509.53 33.6,513.73 26.33,509.53 26.33,501.13"/><text x="47.04" y="509.05">Running <tspan class="count">10</tspan></text></g><g class="legend-item phase-Pending" data-phase="Pending" data-count="1"><polygon class="hex" points="137.82,496.93 145.09,501.13 145.09,509.53 137.82,513.73 130.54,509.53 130.54,501.13"/><text x="151.26" y="509.05">Pending <tspan class="count">1</tspan></text></g><g class="legend-item phase-Blocked" data-phase="Blocked" data-count="1"><polygon class="hex" points="235.75,496.93 243.03,501.13 243.03,509.53 235.75,513.73 228.48,509.53 228.48,501.13"/><text x="249.19" y="509.05">Blocked <tspan class="count">1</tspan></text></g><g class="legend-item phase-NeedsConfig" data-phase="NeedsConfig" data-count="1"><polygon class="hex" points="333.69,496.93 340.97,501.13 340.97,509.53 333.69,513.73 326.42,509.53 326.42,501.13"/><text x="347.13" y="509.05">NeedsConfig <tspan class="count">1</tspan></text></g><g class="legend-item phase-Disabled" data-phase="Disabled" data-count="1"><polygon class="hex" points="456.74,496.93 464.02,501.13 464.02,509.53 456.74,513.73 449.47,509.53 449.47,501.13"/><text x="470.18" y="509.05">Disabled <tspan class="count">1</tspan></text></g><g class="legend-item phase-Error" data-phase="Error" data-count="1"><polygon class="hex" points="560.96,496.93 568.23,501.13 568.23,509.53 560.96,513.73 553.68,509.53 553.68,501.13"/><text x="574.4" y="509.05">Error <tspan class="count">1</tspan></text></g></g>
+</svg>

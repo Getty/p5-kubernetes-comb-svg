@@ -312,6 +312,15 @@ subtest 'edges' => sub {
   );
   is( $_->getAttribute('marker-end'), 'url(#comb-arrow)', 'arrowhead at the dependency' ) for $edges[0];
   like( $_->getAttribute('d'), qr/\AM/, 'path data' ) for $edges[0];
+  for my $name ( 'chain', 'cycle' ) {
+    my $pic = picture($name);
+    my $n   = count( $pic, '//s:path[@class="dep"]' );
+    is(
+      count( $pic, '//s:g[@class="deps"]/s:path[@class="dep"]/following-sibling::*[1][self::s:circle][@class="dep-start"]' ),
+      $n, $name.': every edge is followed by its start dot'
+    );
+    is( count( $pic, '//s:circle[@class="dep-start"]' ), $n, $name.': and there is no other start dot' );
+  }
   is( count( $xpc, '//s:g[@class="deps"]/following-sibling::s:'.$COMB ), 3, 'edges come before the cells' );
   is( count( $xpc, '//s:'.$COMB.'/preceding-sibling::s:g[@class="deps"]' ), 1, "all of them in one g.deps" );
 
