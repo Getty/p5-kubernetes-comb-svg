@@ -1,0 +1,24 @@
+---
+class: standard
+completed: 2026-10-02T05:35:43Z
+created: 2026-10-02T04:35:24Z
+id: 9
+priority: medium
+started: 2026-10-02T05:30:56Z
+status: done
+tags:
+- lib
+- svg
+title: 'Long names in a cell: wrap to two lines before cutting'
+updated: 2026-10-02T05:35:49Z
+---
+
+Found while reviewing examples/monitor.svg for k8 (wall screen, 48 synthetic Combs). A name longer than about 11 characters is cut with an ellipsis, so notification-service-12 and notification-service-28 both read "notificati…" and can only be told apart by the tooltip - which a wall screen does not have. Idea: break a name that does not fit at a hyphen or dot into two lines and cut only what still does not fit. Needs a SPEC decision (§6 says "cut with an ellipsis") - maintainer call. Names that fit today must render byte-identical (demo.svg, monitor.svg unchanged).
+
+Confirmed on the real CitiAI cluster (2026-10-02): at size 56 half of the names are cut - cert-manag…, gpu-operat… - on a page meant for a wall screen without tooltips. Raises the priority.
+
+2026-10-02 05:34 Implemented in lib/Kubernetes/Comb/SVG.pm: _name_lines (wrap after - . _ at the break with the shortest longer line, earlier on ties; normal font 0.22*size = 11 chars/line at size 56, else small font _name_small_font 0.185*size = 13 chars/line, else ellipsis per line at the small font; no break point: cut on one line as before). _cell_lines is the one place that decides every line position (stack of advances; ready for the k11 line: push onto @below). Markup: one text.name, two tspans with x/y each; small font via class name-small, its CSS rule emitted only when a cell needs it. Verified: old vs new render byte-identical over all t/data/svg fixtures + demo.json at 5 sizes x 2 layouts, except borrowed.json where with-context (12 chars) now wraps. examples/*.svg untouched. Also found: a wrapped borrowed cell puts the upstream baseline exactly at +0.5*size, the lower edge of the full-width band (descenders about 0.03*size below, upstream text is cut to 0.8 width so it stays inside the hexagon) - k11 adding one more line under the phase of a wrapped borrowed non-Running cell will not fit the band with the current advances and needs tighter ones.
+
+2026-10-02 05:34 Done: long names wrap onto two lines before being cut (SVG.pm _name_lines/_cell_lines/_cell_text, conditional .name-small rule, POD of THE PICTURE updated). Tests in t/30-svg.t: 'long names' replaced, 'long names: borrowed and hostile' added. prove -lr t/: 7 files, 451 tests, all pass; examples/*.svg unchanged. Tree is commit-ready, not committed.
+
+2026-10-02 05:35 Committed as 2e6d0a0
