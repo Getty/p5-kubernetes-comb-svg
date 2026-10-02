@@ -1,0 +1,33 @@
+---
+claimed_at: 2026-10-02T04:28:27Z
+claimed_by: monitor-layout-theme
+class: standard
+completed: 2026-10-02T04:28:25Z
+created: 2026-10-02T04:19:45Z
+id: 7
+priority: high
+started: 2026-10-02T04:20:30Z
+status: done
+tags:
+- lib
+- layout
+title: 'Packed layout: all Combs on one screen'
+updated: 2026-10-02T04:28:27Z
+---
+
+SPEC §5 'Packed layout', §7. New option layout => 'depth' (default, unchanged) | 'packed'. Packed: dependencies play no part in placement; cells sorted by namespace/name fill rows left to right, top to bottom; positions stay put while the set of Combs is the same. Grid by precedence: an explicitly given columns, else rows, else aspect (width/height; pick the column count whose honeycomb bounding box comes closest), aspect default 16/9. Careful: columns has a default of 6 for the depth layout - packed must tell 'given' from 'default' (predicate), otherwise rows and aspect never apply. Groups still work per group_label, each group its own packed block. edges default to 0 in packed, an explicit edges => 1 wins. CLI: --layout, --rows, --aspect (accept 16:9 and 1.78). Tests: placement ignores dependsOn; columns/rows/aspect each; precedence; stability when only phases change; groups; edges default; a wide and a tall aspect give different grids; depth layout output is byte-identical to before. Add a second demo: examples/monitor.svg from the same demo.json in packed layout, with its freshness test, and show it in the README.
+
+2026-10-02 04:27 Decisions where SPEC 5/7 is open (worker):
+1. aspect is measured on the whole canvas, not the bare honeycomb: Layout gets frame_width/frame_height (default 0, counted only when choosing columns, never in its result) and the facade passes padding + title band + ONE legend row. Reason: purpose is filling a wall screen; with the bare honeycomb the 15-Comb demo came out 1.36:1 for a 16/9 target, with the frame 1.68:1. Not accounted: a legend wrapping to more rows, a title wider than the honeycomb.
+2. aspect picks ONE column count for all groups (stacked blocks + headings measured together), closest by log ratio, tie -> fewer columns. Per-group aspect would stack several 16:9 blocks into a tall picture.
+3. rows holds per group block: columns = ceil(cells/rows), so a block has at most 'rows' rows and fewer when the cells do not fill them (9 cells, rows 4 -> 3 columns -> 3 rows). columns likewise per block.
+4. Sort is by cell id (namespace/name, or name alone) as a string - Layout knows only id/name/group/dependencies.
+5. Given vs default columns: _columns_given set in BUILD from the constructor args, in facade and Layout; public columns accessor still answers 6. In depth layout the facade passes columns always (a subclass default override keeps working).
+6. Bad option values (layout => 'spiral', rows => 0, aspect => '16:9' as string in Perl) die in the constructor through the isa check - exactly how columns/size/edges behave today and what the POD of render documents; the CLI checks them first and exits 1 with one line. No fall back to default: it would be the only option doing so.
+7. Layout names the attribute 'mode', not 'layout' - 'layout' is its main method. Facade option is 'layout' as in the SPEC.
+8. edges became a lazy attribute (builder: 0 in packed, else 1); the CLI no longer passes edges unless --edges/--no-edges is given.
+9. demo.pl writes monitor.svg next to demo.svg (also when a path is given, so t/50-demo.t writes nothing into the tree). monitor.svg: packed, no group_label, default aspect.
+
+2026-10-02 04:27 Done: packed layout, CLI options, monitor demo, tests. prove -lr t/: Files=7, Tests=341, PASS. demo.svg unchanged. Uncommitted, tree commit-ready. Decisions are in the note above. Open: POD polish, Changes entry.
+
+2026-10-02 04:28 Committed as 076c18c
