@@ -1,6 +1,54 @@
 package Kubernetes::Comb::SVG::Layout;
 # ABSTRACT: Places cells in groups, dependency rows and a honeycomb
 
+=synopsis
+
+  use Kubernetes::Comb::SVG::Layout;
+
+  my $layout = Kubernetes::Comb::SVG::Layout->new(
+    cells   => \@cells,
+    columns => 6,
+    size    => 56
+  )->layout;
+
+  for my $cell ( @{ $layout->{cells} } ) {
+    # $cell->{id}, $cell->{x}, $cell->{y}, $cell->{row}, $cell->{column}
+  }
+
+=description
+
+Places cells in a honeycomb and returns plain data. It knows neither the
+custom resource nor SVG: a cell is anything answering C<id>, C<name>,
+C<group> and C<dependencies>, as L<Kubernetes::Comb::SVG::Cell> does.
+
+=over
+
+=item * Groups are stacked top to bottom in name order, the cells without a
+group last. With more than one group, or one named group, every group has a
+heading; a lone unnamed group has none.
+
+=item * Inside a group a cell sits in the row of its dependency depth: depth 0
+without a dependency in the picture, else one below its deepest dependency.
+Depth is computed over all cells, not per group, so an edge between groups
+still points the right way. Dependencies on ids that are not among the cells
+do not count.
+
+=item * The cells of a dependency cycle share one depth, one below the deepest
+dependency outside the cycle. A cell depending on itself counts as no
+dependency. A cycle, or a long chain, never loops or dies.
+
+=item * Rows are sorted by name (then by id), and a depth with more cells than
+L</columns> wraps into further rows. A group therefore has one or more rows
+for each depth that occurs in it; a depth no cell of the group has is
+skipped, so the row number is not the depth.
+
+=item * Pointy-top hexagons; every second row is shifted by half a step, so
+rows interlock.
+
+=back
+
+=cut
+
 use Moo;
 use Types::Common::Numeric qw( PositiveInt PositiveNum );
 use Types::Standard qw( ArrayRef Object );
@@ -10,34 +58,108 @@ our $VERSION = '0.001';
 
 has cells => ( is => 'ro', isa => ArrayRef[Object], default => sub { [] } );
 
+=attr cells
+
+Default empty. ArrayRef of cell objects, each answering C<id>, C<name>,
+C<group> (a string or C<undef>) and C<dependencies> (the ids it depends on).
+Of several with one C<id> the first is kept; an object without an C<id> is
+left out.
+
+=cut
+
 has columns => ( is => 'ro', isa => PositiveInt, default => 6 );
 
+=attr columns
+
+Default C<6>, a positive integer. Cells per row before a row wraps.
+
+=cut
+
 has size => ( is => 'ro', isa => PositiveNum, default => 56 );
+
+=attr size
+
+Default C<56>, a positive number. Radius of a hexagon, centre to corner, in
+the units of the result. Every measure below derives from it.
+
+=cut
 
 #### Geometry, all derived from size
 
 # Pointy-top hexagon: flat sides left and right, a corner at top and bottom.
 sub hex_width { sqrt(3) * $_[0]->size }
 
+=method hex_width
+
+Width of one pointy-top hexagon, flat side to flat side: C<sqrt(3) * size>.
+
+=cut
+
 sub hex_height { 2 * $_[0]->size }
+
+=method hex_height
+
+Height of one hexagon, corner to corner: C<2 * size>.
+
+=cut
 
 # Air between the sides of two neighbouring hexagons.
 sub gap { $_[0]->size / 7 }
 
+=method gap
+
+Air between the sides of two neighbouring hexagons: C<size / 7>.
+
+=cut
+
 # Centre to centre inside a row.
 sub step_x { $_[0]->hex_width + $_[0]->gap }
+
+=method step_x
+
+Distance between the centres of two neighbours in a row:
+L</hex_width> plus L</gap>.
+
+=cut
 
 # Centre to centre between two rows: the same distance as inside a row, seen
 # along the diagonal, so the gap is the same on all six sides.
 sub step_y { $_[0]->step_x * sqrt(3) / 2 }
 
+=method step_y
+
+Distance between the centres of two rows: L</step_x> C<* sqrt(3) / 2>, so the
+gap is the same on all six sides of a hexagon.
+
+=cut
+
 # Band above a group that holds its heading; the baseline sits inside it.
 sub heading_height { $_[0]->size * 0.6 }
 
+=method heading_height
+
+Room above a group for its heading: C<0.6 * size>. Only taken when the
+picture has headings.
+
+=cut
+
 sub heading_baseline { $_[0]->size * 0.4 }
+
+=method heading_baseline
+
+Distance of the heading's baseline from the top of its group: C<0.4 * size>.
+
+=cut
 
 # Between the lowest hexagon of a group and the heading band of the next.
 sub group_gap { $_[0]->size * 0.35 }
+
+=method group_gap
+
+Space between the lowest hexagon of a group and the heading band of the next:
+C<0.35 * size>.
+
+=cut
 
 #### Layout
 
@@ -109,6 +231,54 @@ sub layout {
     edges  => \@edges
   };
 }
+
+=method layout
+
+  my $layout = $self->layout;
+
+Places the cells and returns a plain hash. With the defaults (C<size> 56) and
+two cells in one group, C<db> without dependency and C<api> depending on it:
+
+  {
+    width  => 149.49,
+    height => 236.53,
+    groups => [
+      { name => 'alpha', heading => { x => 0, y => 22.4 }, y => 0, height => 236.53 }
+    ],
+    cells => [
+      { id => 'lab/db',  name => 'db',  group => 'alpha', depth => 0,
+        row => 0, column => 0, x => 48.5,  y => 89.6 },
+      { id => 'lab/api', name => 'api', group => 'alpha', depth => 1,
+        row => 1, column => 0, x => 100.99, y => 180.53 }
+    ],
+    edges => [ { from => 'lab/api', to => 'lab/db' } ]
+  }
+
+=over
+
+=item * C<width>, C<height>: the extent of the content, which starts at
+C<0,0>. The canvas is the caller's: padding and title are not included.
+
+=item * C<groups>: one hash per group, in order. C<name> is the group name,
+C<undef> for the cells without one. C<heading> is C<< { x, y } >>, the left
+end of the baseline of the heading, or C<undef> when the picture has no
+headings. C<y> and C<height> span the group including its heading band.
+
+=item * C<cells>: one hash per cell, group by group and row by row. C<id>,
+C<name> and C<group> are the cell's; C<depth> is the dependency depth over the
+whole picture; C<row> and C<column> count inside the group; C<x> and C<y> are
+the centre of the hexagon.
+
+=item * C<edges>: C<< { from, to } >> by C<id>, from a cell to a cell it
+depends on, sorted by C<from> then C<to>, without duplicates. Only ids among
+the cells; a cell depending on itself gives none.
+
+=back
+
+All coordinates are rounded to two decimals, so the result is the same on
+every platform. No cells give width and height C<0> and empty lists.
+
+=cut
 
 # The cells with an id, the first of each id.
 sub _unique_cells {
@@ -210,100 +380,6 @@ sub _round {
 }
 
 1;
-
-=head1 SYNOPSIS
-
-  use Kubernetes::Comb::SVG::Layout;
-
-  my $layout = Kubernetes::Comb::SVG::Layout->new(
-    cells   => \@cells,
-    columns => 6,
-    size    => 56
-  )->layout;
-
-  for my $cell ( @{ $layout->{cells} } ) {
-    # $cell->{id}, $cell->{x}, $cell->{y}, $cell->{row}, $cell->{column}
-  }
-
-=head1 DESCRIPTION
-
-Places cells in a honeycomb and returns plain data. It knows neither the
-custom resource nor SVG: a cell is anything answering C<id>, C<name>,
-C<group> and C<dependencies>, as L<Kubernetes::Comb::SVG::Cell> does.
-
-Groups are stacked top to bottom in name order, the cells without a group
-last. Inside a group a cell sits in the row of its dependency depth, which is
-computed over all cells; the cells of a dependency cycle share a row. Rows
-are sorted by name, wrap at L</columns>, and every second one is shifted by
-half a cell.
-
-=attr cells
-
-ArrayRef of cells. Of several with one C<id> the first is kept.
-
-=attr columns
-
-Cells per row before a row wraps. Default C<6>.
-
-=attr size
-
-Radius of a hexagon, centre to corner. Default C<56>.
-
-=method layout
-
-  my $layout = $self->layout;
-
-Returns a hash:
-
-  {
-    width  => 149.49,
-    height => 685.86,
-    groups => [
-      { name => 'alpha', heading => { x => 0, y => 22.4 }, y => 0, height => 236.53 },
-      ...
-    ],
-    cells => [
-      { id => 'ns/db', name => 'db', group => 'alpha', depth => 0,
-        row => 0, column => 0, x => 48.5, y => 89.6 },
-      ...
-    ],
-    edges => [ { from => 'ns/api', to => 'ns/db' }, ... ]
-  }
-
-C<x> and C<y> of a cell are the centre of its hexagon. C<row> and C<column>
-count inside the group, C<depth> over the whole picture. Cells are listed
-group by group, row by row. A group's C<name> is C<undef> for the cells
-without one; C<y> and C<height> span the group including its heading.
-C<heading> is the left end of the baseline of the group's heading, or
-C<undef> when the only group is the unnamed one. C<edges> go from a cell to a cell it depends on,
-both by C<id>; a cell depending on itself gives no edge. All coordinates are
-rounded to two decimals; the content starts at C<0,0>.
-
-=method hex_width
-
-=method hex_height
-
-Extent of one pointy-top hexagon of radius L</size>.
-
-=method gap
-
-Air between two neighbouring hexagons.
-
-=method step_x
-
-=method step_y
-
-Distance between the centres of two neighbours in a row, and between two
-rows.
-
-=method heading_height
-
-=method heading_baseline
-
-=method group_gap
-
-Room above a group for its heading, the baseline inside that room, and the
-space between two groups.
 
 =seealso
 

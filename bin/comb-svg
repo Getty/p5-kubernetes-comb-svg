@@ -137,62 +137,87 @@ exit main(@ARGV);
 
 __END__
 
-=head1 SYNOPSIS
+=synopsis
 
   kubectl get combs -A -o json | comb-svg --group-label app.kubernetes.io/part-of > combs.svg
-  comb-svg combs.json --title "Lab" --columns 4 --no-legend
+  comb-svg combs.json --title "Lab" --columns 4 --no-legend > combs.svg
+  comb-svg --help
 
-=head1 DESCRIPTION
+=description
 
 Reads L<Kubernetes::Comb> custom resources as JSON and writes one
 self-contained SVG honeycomb to standard output, drawn by
-L<Kubernetes::Comb::SVG>.
+L<Kubernetes::Comb::SVG>, which describes the picture. The command never
+talks to a cluster: it draws what it is given, so the JSON comes from
+C<kubectl>, a file or any other tool. The SVG is pure ASCII and the same
+input gives the same bytes.
 
-The input is a file argument, or standard input when there is none or it is
-C<->. It is a C<List> (as C<kubectl get -o json> prints it), an array of
-custom resources or one custom resource, read as UTF-8.
+The input is the file named as the one argument, or standard input when there
+is no argument or it is C<->. It is JSON, read as UTF-8, in one of three
+shapes: a C<List> (a hash with C<items>, as C<kubectl get combs -o json>
+prints it), an array of custom resources, or one custom resource. More than
+one file is an error. Only the options below exist; the C<link> and C<theme>
+options of the module are not available on the command line. Options are
+case-sensitive and must be spelled out in full.
 
-Bad JSON, a file that cannot be read, JSON that is neither an object nor an
-array, an element without C<metadata.name>, an unknown option or a bad option
-value: one line on standard error, nothing on standard output, exit status 1.
+An unknown phase, a missing C<status>, a dependency on a name that is not in
+the input, a dependency cycle: all give a picture. An empty array gives a
+valid picture without cells.
+
+=head2 Exit status
+
+C<0> after the SVG was written, and for C<--help> and C<--version>. C<1> on
+any error, with one line C<comb-svg: message> on standard error and nothing on
+standard output: an unknown option or a bad option value, more than one input
+file, a file that cannot be read, invalid JSON, JSON that is neither an object
+nor an array, and an element without C<metadata.name>.
+
+=cut
 
 =head1 OPTIONS
 
-=head2 --title TEXT
+=opt --title TEXT
 
 Heading and C<< <title> >> of the picture. Default C<Combs>.
 
-=head2 --group-label KEY
+=opt --group-label KEY
 
-Label key whose value names the group of a Comb. Without it there are no
-groups.
+Label key (for example C<app.kubernetes.io/part-of>) whose value names the
+group of a Comb. Groups are drawn under their own headings in name order,
+Combs without the label last. Without the option there are no groups.
 
-=head2 --columns N
+=opt --columns N
 
 Cells per row before a row wraps, a positive integer. Default C<6>.
 
-=head2 --size N
+=opt --size N
 
-Radius of a hexagon in SVG units, a positive number. Default C<56>.
+Radius of a hexagon in SVG units, a positive decimal number (no exponent); the
+rest of the picture scales with it. Default C<56>.
 
-=head2 --no-edges
+=opt --no-edges
 
-Leave out the dependency edges.
+Leave out the dependency edges. They are drawn by default.
 
-=head2 --no-legend
+=opt --no-legend
 
-Leave out the legend.
+Leave out the legend of the phases. It is drawn by default.
 
-=head2 --help
+=opt --help
 
-Print the usage and exit.
+Print the usage and exit with status C<0>. The text is written by hand into
+the script and does not come from this documentation.
 
-=head2 --version
+=opt --version
 
-Print the version and exit.
+Print C<comb-svg VERSION> and exit with status C<0>.
 
-=head1 SEE ALSO
+=seealso
 
-L<Kubernetes::Comb::SVG>
+=over
+
+=item * L<Kubernetes::Comb::SVG>
+
+=back
 
 =cut

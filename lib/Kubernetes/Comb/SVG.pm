@@ -1,6 +1,51 @@
 package Kubernetes::Comb::SVG;
 # ABSTRACT: Render Kubernetes::Comb custom resources as an SVG honeycomb
 
+=synopsis
+
+  use Kubernetes::Comb::SVG;
+
+  my $svg = Kubernetes::Comb::SVG->new(
+    combs       => \@combs,
+    title       => 'Lab',
+    group_label => 'app.kubernetes.io/part-of',
+    columns     => 4,
+    link        => sub { '/combs/'.$_[0]->name },
+    theme       => { Running => '#2da44e' }
+  )->render;
+
+  # @combs: hashes in CR shape, e.g.
+  #   { metadata => { name => 'db', namespace => 'lab' },
+  #     spec     => { class => 'postgres' },
+  #     status   => { phase => 'Running' } }
+  #   { metadata => { name => 'nats' }, spec => { dependsOn => ['db'] } }
+
+=description
+
+Draws a set of L<Kubernetes::Comb> custom resources as one self-contained SVG
+document: a honeycomb with one hexagon per Comb, coloured by its phase, with
+the dependencies drawn between them and a legend of the phases that occur.
+Data in, string out: the dist never talks to a cluster -- the caller fetches
+the custom resources (C<kubectl get combs -A -o json>, a client library, a
+fixture) and hands them in. L<Kubernetes::Comb> and L<IO::K8s> are not
+dependencies; the input is duck-typed, see L</combs>.
+
+The same input gives the same bytes: no timestamps, no generated ids, every
+hash sorted before it reaches the output. The picture carries no script and no
+reference to anything outside the document, and everything that comes from a
+custom resource is escaped, see L</THE PICTURE>.
+
+Odd data never dies: an unknown phase is drawn as C<Unknown>, a missing
+C<status> is fine, a dependency on a name that is not in the input is listed
+as missing in the tooltip, a dependency cycle puts its cells on one row. Only
+a Comb without C<metadata.name> is an error.
+
+C<examples/demo.pl> in the distribution renders C<examples/demo.json> to
+C<examples/demo.svg>, the picture shown in the README. The command line
+equivalent is L<comb-svg>.
+
+=cut
+
 use Moo;
 use Carp qw( carp );
 use Types::Common::Numeric qw( PositiveInt PositiveNum );
@@ -13,23 +58,148 @@ our $VERSION = '0.001';
 
 has combs => ( is => 'ro', isa => Any, required => 1 );
 
+=attr combs
+
+Required. The custom resources to draw, in any of these shapes:
+
+=over
+
+=item * an array reference of Comb custom resources
+
+=item * a C<List> hash, a hash with C<items>, as C<kubectl get combs -o json>
+prints it
+
+=item * a single custom resource (a hash without C<items>)
+
+=back
+
+Each custom resource is a plain hash in CR shape (C<metadata>, C<spec>,
+C<status>) or an object answering C<TO_JSON> with such a hash, like the
+L<IO::K8s> classes of L<Kubernetes::Comb>. C<undef> and an empty list give a
+valid picture with no cells.
+
+  combs => [ { metadata => { name => 'db' } }, $comb_object ]
+  combs => { items => \@combs }
+
+Of two custom resources with the same C<namespace/name> the first is kept. The
+input is read when the picture is first needed (L</cells>, L</render>), not by
+the constructor; a Comb without C<metadata.name> dies there. See
+L<Kubernetes::Comb::SVG::Cell/cells_from> for what is read from each one.
+
+=cut
+
 has title => ( is => 'ro', isa => Str, default => 'Combs' );
+
+=attr title
+
+Default C<Combs>. The text of the heading above the honeycomb and of the
+C<< <title> >> of the SVG (what a screen reader announces). The canvas widens
+if a long title needs it.
+
+=cut
 
 has group_label => ( is => 'ro', isa => Maybe[Str] );
 
+=attr group_label
+
+Optional, no default. A label key, for example
+C<app.kubernetes.io/part-of>: the Combs are grouped by the value that label
+has in C<metadata.labels>. Each group is drawn under its own heading, groups
+stacked top to bottom in name order, the Combs without the label in a last
+group without a name. Without it there is one group and no headings. No label
+key is built in; which one groups your Combs is your choice.
+
+=cut
+
 has columns => ( is => 'ro', isa => PositiveInt, default => 6 );
+
+=attr columns
+
+Default C<6>, a positive integer. How many hexagons a row holds before it
+wraps into the next row. Wrapped rows stay in the group and in the dependency
+depth they belong to.
+
+=cut
 
 has size => ( is => 'ro', isa => PositiveNum, default => 56 );
 
+=attr size
+
+Default C<56>, a positive number. The radius of a hexagon, centre to corner,
+in SVG units. Fonts, gaps, stroke widths and the padding all derive from it,
+so the picture changes scale as a whole. The SVG has a C<viewBox> and no
+fixed pixel size: it scales with the box that embeds it anyway.
+
+=cut
+
 has edges => ( is => 'ro', isa => Bool, default => 1 );
+
+=attr edges
+
+Default true. Draws one arrow per dependency, from the dependent Comb to the
+Comb it depends on. False leaves out the C<g.deps> group; the placement of the
+cells does not change.
+
+=cut
 
 has legend => ( is => 'ro', isa => Bool, default => 1 );
 
+=attr legend
+
+Default true. Draws the legend below the honeycomb: one entry for each phase
+that occurs, with its colour and the number of Combs in it. False leaves out
+the C<g.legend> group.
+
+=cut
+
 has link => ( is => 'ro', isa => Maybe[CodeRef] );
+
+=attr link
+
+Optional coderef, no default. Called once per cell with its
+L<Kubernetes::Comb::SVG::Cell> object; it returns the URL the cell links to,
+or C<undef> for no link. A linked cell is wrapped in C<< <a href="..."> >>.
+
+  link => sub { my ( $cell ) = @_; '/combs/'.$cell->namespace.'/'.$cell->name }
+
+The result is used only when it is relative (C</combs/db>, C<db.html>) or
+starts with C<http://> or C<https://>, and carries no whitespace or control
+character; anything else (C<javascript:>, C<data:>, a reference, an empty
+string) draws the cell without a link. The value is escaped as an attribute.
+A callback that dies is caught: the cell is drawn without a link and a
+warning (L<Carp/carp>) names it.
+
+=cut
 
 has theme => ( is => 'ro', isa => HashRef, default => sub { {} } );
 
+=attr theme
+
+Default C<{}>. A hash from phase name (C<Running>, C<Pending>, C<Blocked>,
+C<NeedsConfig>, C<Disabled>, C<Error>, C<Unknown>, see L</phases>) to colour,
+merged over the built-in colours; keys that are no phase are ignored.
+
+  theme => { Running => '#2da44e', Error => 'crimson' }
+
+The colour is the outline of the hexagon; its fill is the same colour at low
+opacity, so the text stays readable whatever colour is chosen. Accepted are
+C<#rgb>, C<#rgba>, C<#rrggbb>, C<#rrggbbaa>, a colour name (letters only) and
+C<rgb()>, C<rgba()>, C<hsl()>, C<hsla()> over plain numbers; any other value
+falls back to the built-in colour of that phase. One value serves light and
+dark mode, while the built-in colours differ between the two. The page
+colours (background, text, borders) are not themable here, see
+L</THE PICTURE>.
+
+=cut
+
 has cells => ( is => 'lazy', isa => ArrayRef[Object], init_arg => undef );
+
+=attr cells
+
+The L<Kubernetes::Comb::SVG::Cell> objects read from L</combs>, in input
+order. Built on first use. Not a constructor argument.
+
+=cut
 
 sub _build_cells {
   my ( $self ) = @_;
@@ -49,7 +219,25 @@ sub _build__layouter {
 
 sub cell_class { 'Kubernetes::Comb::SVG::Cell' }
 
+=method cell_class
+
+Returns the class name that reads the custom resources,
+C<Kubernetes::Comb::SVG::Cell>. It must answer C<cells_from>, C<known_phases>
+and the cell accessors. Override in a subclass to read the custom resources
+differently.
+
+=cut
+
 sub layout_class { 'Kubernetes::Comb::SVG::Layout' }
+
+=method layout_class
+
+Returns the class name that places the cells, C<Kubernetes::Comb::SVG::Layout>.
+It is built with C<cells>, C<columns> and C<size> and must answer C<layout>
+and the geometry methods of L<Kubernetes::Comb::SVG::Layout>. Override in a
+subclass to place the cells differently.
+
+=cut
 
 #### Phases and colours
 
@@ -57,6 +245,17 @@ sub phases {
   my ( $self ) = @_;
   return ( $self->cell_class->known_phases, 'Unknown' );
 }
+
+=method phases
+
+  my @phases = $svg->phases;
+
+Returns the phases a cell can be drawn in, in the fixed order of the legend:
+C<Running>, C<Pending>, C<Blocked>, C<NeedsConfig>, C<Disabled>, C<Error>,
+then C<Unknown> for every other C<status.phase> (and for a missing one). These
+are the keys L</theme> understands.
+
+=cut
 
 # Per phase the stroke colour in light and in dark mode; the fill is the same
 # colour at a low opacity over the panel, so text keeps its contrast whatever
@@ -331,6 +530,22 @@ sub render {
   ], "\n".join( "\n", @out )."\n" )."\n";
 }
 
+=method render
+
+  my $svg = $svg->render;
+
+Returns the picture as one SVG document in a string: it starts with C<< <svg >>
+(no XML declaration, so it can be inlined into HTML as well as served as
+C<image/svg+xml>) and ends with a newline. The string is pure ASCII: what is
+outside ASCII is written as a character reference. Same input and options,
+same bytes. The document is self-contained, see L</THE PICTURE>.
+
+Dies with C<Comb without metadata.name> when an element of L</combs> has no
+name; nothing else in the data is an error. The constructor dies, as Moo
+does, on an option of the wrong type. A dying L</link> callback only warns.
+
+=cut
+
 sub _marker {
   my ( $self ) = @_;
   my $arrow = $self->_n( $self->_arrow );
@@ -591,83 +806,64 @@ sub _legend {
 
 1;
 
-=head1 SYNOPSIS
+=head1 THE PICTURE
 
-  use Kubernetes::Comb::SVG;
+What the document contains, so a page that embeds it can style or script
+against it. Everything is plain SVG; a page can query it with the DOM when the
+SVG is inlined.
 
-  my $svg = Kubernetes::Comb::SVG->new(
-    combs       => \@combs,
-    title       => 'Lab',
-    group_label => 'app.kubernetes.io/part-of'
-  )->render;
+=over
 
-=head1 DESCRIPTION
+=item * The root is C<< <svg class="comb-svg" role="img"> >> with C<xmlns>, a
+C<viewBox> and no fixed width or height, labelled by C<< <title
+id="comb-title"> >> (from L</title>) and C<< <desc id="comb-desc"> >>, a
+generated summary such as C<3 Combs: 2 Running, 1 Blocked>.
 
-Draws a set of L<Kubernetes::Comb> custom resources as one self-contained SVG
-document: a honeycomb with one hexagon per Comb, coloured by its phase, with
-the dependencies drawn between them. Data in, string out: no cluster access,
-no script and no external reference in the picture, and the same input gives
-the same bytes.
+=item * One C<< <g class="comb phase-Running"> >> per cell. The class is
+C<comb>, C<phase-E<lt>PhaseE<gt>> (see L</phases>), plus C<borrowed> when the
+Comb takes its service from an upstream layer (dashed outline, a line naming
+the upstream context) and C<disabled> for a Disabled one. Attributes:
+C<data-name> (C<metadata.name>), C<data-id> (C<namespace/name>, or the name
+alone), C<data-phase>. Inside: a C<< <title> >> tooltip (id, namespace, class,
+phase, the message when the phase is not Running, endpoints, upstream,
+missing dependencies), C<polygon.hex>, C<text.name> (cut with an ellipsis
+when too long; the full name is in the tooltip), C<text.phase> and, for a
+borrowed Comb, C<text.upstream>. With L</link> the group sits inside an
+C<< <a> >>. The phase is always written as text, never by colour alone.
 
-=attr combs
+=item * C<g.deps> holds one C<path.dep> per dependency, with C<data-from> (the
+dependent) and C<data-to> (the dependency) as ids, an arrowhead at the
+dependency, and a C<circle.dep-start> marking where it leaves the dependent.
+It is drawn before the cells, so cells stay on top; it is absent with
+C<< edges => 0 >> and when there are no edges.
 
-The custom resources: an array reference of hashes in CR shape or of objects
-answering C<TO_JSON>, or a C<List> hash with C<items>. Required.
+=item * C<g.group> per group heading, with C<data-group> (the label value)
+unless it is the group without a name; holds C<text.group-name> and a faint
+C<line.group-rule>. Only present when the picture has headings, see
+L</group_label>.
 
-=attr title
+=item * C<g.legend> holds one C<g.legend-item.phase-E<lt>PhaseE<gt>> per
+phase that occurs, with C<data-phase> and C<data-count>.
 
-The C<< <title> >> of the picture and its heading. Default C<Combs>.
+=item * One C<< <style> >> element. Colours are CSS custom properties on
+C<.comb-svg>: C<--comb-bg>, C<--comb-border>, C<--comb-fg>, C<--comb-muted>,
+C<--comb-edge>, one per phase (C<--comb-running>, C<--comb-pending>,
+C<--comb-blocked>, C<--comb-needsconfig>, C<--comb-disabled>,
+C<--comb-error>, C<--comb-unknown>) and the fill opacities C<--comb-tint> and
+C<--comb-tint-muted>. A C<@media (prefers-color-scheme: dark)> block gives
+the dark values. The font is the system sans stack.
 
-=attr group_label
+=back
 
-Label key whose value names a cell's group. No default.
-
-=attr columns
-
-Cells per row before a row wraps. Default C<6>.
-
-=attr size
-
-Radius of a hexagon in SVG units. Default C<56>.
-
-=attr edges
-
-Draw the dependency edges. Default true.
-
-=attr legend
-
-Draw the legend. Default true.
-
-=attr link
-
-Coderef, called with a L<Kubernetes::Comb::SVG::Cell>; returns the href the
-cell links to, or C<undef>. Only a relative or C<http:>/C<https:> href is
-used.
-
-=attr theme
-
-Hash C<< phase => colour >>, merged over the built-in colours.
-
-=attr cells
-
-The L<Kubernetes::Comb::SVG::Cell> objects read from L</combs>. Not a
-constructor argument.
-
-=method render
-
-  my $svg = $self->render;
-
-Returns the SVG document as a string of ASCII characters.
-
-=method phases
-
-The known phases in their fixed order, then C<Unknown>.
-
-=method cell_class
-
-=method layout_class
-
-The classes that read the custom resources and place the cells.
+The picture is self-contained: no script, no web font, no stylesheet link, no
+image, no reference to anything outside the document (the arrowhead is a
+C<< <marker> >> inside it). Every value that comes from a custom resource --
+names, namespaces, messages, label values, upstream contexts, a L</link>
+result -- is escaped wherever it lands, in text, in C<< <title> >> and in
+attributes, and the five XML special characters become entities. Characters
+XML 1.0 cannot carry are dropped, and everything outside ASCII becomes a
+numeric character reference. A Comb named C<< </svg><script> >> comes out as
+text.
 
 =seealso
 
@@ -676,6 +872,10 @@ The classes that read the custom resources and place the cells.
 =item * L<Kubernetes::Comb::SVG::Cell>
 
 =item * L<Kubernetes::Comb::SVG::Layout>
+
+=item * L<comb-svg>
+
+=item * L<Kubernetes::Comb>
 
 =back
 

@@ -1,6 +1,36 @@
 package Kubernetes::Comb::SVG::Cell;
 # ABSTRACT: One Comb custom resource, normalised for layout and drawing
 
+=synopsis
+
+  use Kubernetes::Comb::SVG::Cell;
+
+  my $cell = Kubernetes::Comb::SVG::Cell->from_cr( $cr,
+    group_label => 'app.kubernetes.io/part-of' );
+
+  my @cells = Kubernetes::Comb::SVG::Cell->cells_from($list_or_array_or_cr);
+
+  for my $cell (@cells) {
+    printf "%s %s -> %s\n", $cell->id, $cell->phase,
+      join ',', @{ $cell->dependencies };
+  }
+
+=description
+
+The only place a C<Comb> custom resource is read. A cell carries the plain
+values layout and drawing need; nothing in it is escaped (the drawing does
+that). The input is duck-typed: a hash in CR shape, or an object answering
+C<TO_JSON>, which is also tried on every section (C<metadata>, C<spec>,
+C<status>, ...). The module never talks to a cluster and does not need
+L<Kubernetes::Comb> or L<IO::K8s>.
+
+Odd data degrades quietly: a section that is not a hash counts as empty, a
+value that is not a plain non-empty string counts as absent, a missing
+C<status> gives phase C<Unknown>. Only a Comb without C<metadata.name> is an
+error.
+
+=cut
+
 use Moo;
 use Carp qw( croak );
 use Scalar::Util qw( blessed );
@@ -11,9 +41,30 @@ our $VERSION = '0.001';
 
 has name => ( is => 'ro', isa => Str, required => 1 );
 
+=attr name
+
+Required. C<metadata.name>.
+
+=cut
+
 has namespace => ( is => 'ro', isa => Maybe[Str] );
 
+=attr namespace
+
+C<metadata.namespace>, or C<undef> when the custom resource has none.
+
+=cut
+
 has id => ( is => 'lazy', isa => Str, init_arg => undef );
+
+=attr id
+
+C<namespace/name>, or the L</name> alone when there is no namespace. This is
+what makes a cell unique in a set (so C<kubectl get combs -A> may carry one
+name in two namespaces), what L</dependencies> hold, and what the drawing
+puts in C<data-id>. Not a constructor argument.
+
+=cut
 
 sub _build_id {
   my ( $self ) = @_;
@@ -22,37 +73,159 @@ sub _build_id {
 
 has class => ( is => 'ro', isa => Maybe[Str] );
 
+=attr class
+
+C<spec.class>, or C<undef>.
+
+=cut
+
 has phase => ( is => 'ro', isa => Str, default => 'Unknown' );
+
+=attr phase
+
+Default C<Unknown>. The phase the cell is drawn in: C<Disabled> when
+L</enabled> is false, else C<status.phase> when it is one of
+L</known_phases>, else C<Unknown> (also for a missing C<status>).
+
+=cut
 
 has raw_phase => ( is => 'ro', isa => Maybe[Str] );
 
+=attr raw_phase
+
+C<status.phase> as the custom resource has it, or C<undef> when it is absent
+or not a string. It is kept even when L</phase> says something else, so the
+tooltip can show what an C<Unknown> cell really reported.
+
+=cut
+
 has enabled => ( is => 'ro', isa => Bool, default => 1 );
+
+=attr enabled
+
+Default true. C<spec.enabled> is read as a tri-state: unset is true; only a
+false value switches the cell off (C<false>, the string C<false> in any case,
+C<0>, the empty string); any other value is true. A disabled cell has the
+phase C<Disabled> even without a C<status>.
+
+=cut
 
 has depends_on => ( is => 'ro', isa => ArrayRef[Str], default => sub { [] } );
 
+=attr depends_on
+
+ArrayRef of the entries of C<spec.dependsOn> as written, each C<name> or
+C<namespace/name>, in order, without duplicates. A single string instead of a
+list is accepted. Entries that are not plain non-empty strings are dropped.
+Not yet resolved; see L</dependencies> and L</missing>.
+
+=cut
+
 has dependencies => ( is => 'rwp', isa => ArrayRef[Str], init_arg => undef, default => sub { [] } );
+
+=attr dependencies
+
+ArrayRef of the L</id>s of the cells this one depends on, in the order of
+L</depends_on>, without duplicates. Filled by L</cells_from>; empty on a cell
+built alone. A cell that lists itself has its own id here. Not a constructor
+argument.
+
+=cut
 
 has missing => ( is => 'rwp', isa => ArrayRef[Str], init_arg => undef, default => sub { [] } );
 
+=attr missing
+
+ArrayRef of the L</depends_on> entries, as written, that match no cell of the
+set, or more than one. Filled by L</cells_from>; empty on a cell built alone.
+The drawing lists them in the tooltip; they do not take part in the layout.
+Not a constructor argument.
+
+=cut
+
 has endpoints => ( is => 'ro', isa => ArrayRef[HashRef], default => sub { [] } );
+
+=attr endpoints
+
+ArrayRef of C<< { name => $name, port => $port } >> from C<status.endpoints>,
+in order. C<port> is a string, or C<undef> when the entry has none; an entry
+without a C<name> is skipped.
+
+=cut
 
 has borrowed => ( is => 'ro', isa => Bool, default => 0 );
 
+=attr borrowed
+
+Default false. True when C<status.upstream> is present, that is a non-empty
+hash: the Comb takes its service from an upstream layer instead of running it.
+
+=cut
+
 has upstream_context => ( is => 'ro', isa => Maybe[Str] );
+
+=attr upstream_context
+
+C<status.upstream.context>, or C<undef>.
+
+=cut
 
 has upstream_via => ( is => 'ro', isa => ArrayRef[Str], default => sub { [] } );
 
+=attr upstream_via
+
+ArrayRef of the names in C<status.upstream.via>, in order, without
+duplicates; a single string is accepted.
+
+=cut
+
 has group => ( is => 'ro', isa => Maybe[Str] );
+
+=attr group
+
+The value of the label named by the C<group_label> option in
+C<metadata.labels>. C<undef> without that option, without the label, or with
+an empty value.
+
+=cut
 
 has message => ( is => 'ro', isa => Maybe[Str] );
 
+=attr message
+
+The C<message> of every entry of C<status.conditions>, each once, joined by
+newlines; C<undef> when there is none. Only read when L</phase> is not
+C<Running>.
+
+=cut
+
 sub known_phases { qw( Running Pending Blocked NeedsConfig Disabled Error ) }
+
+=method known_phases
+
+  my @phases = Kubernetes::Comb::SVG::Cell->known_phases;
+
+Returns the phases of C<Kubernetes::Comb> that are drawn as themselves:
+C<Running>, C<Pending>, C<Blocked>, C<NeedsConfig>, C<Disabled>, C<Error>.
+Any other phase is C<Unknown>. Callable on the class.
+
+=cut
 
 sub is_known_phase {
   my ( $self, $phase ) = @_;
   return 0 unless defined $phase;
   return scalar grep { $_ eq $phase } $self->known_phases;
 }
+
+=method is_known_phase
+
+  $cell->is_known_phase('Running');   # true
+  $cell->is_known_phase('Starting');  # false
+
+True when the phase is one of L</known_phases>; false for an unknown phase
+and for C<undef>.
+
+=cut
 
 sub from_cr {
   my ( $self, $cr, %opt ) = @_;
@@ -95,6 +268,23 @@ sub from_cr {
   );
 }
 
+=method from_cr
+
+  my $cell = Kubernetes::Comb::SVG::Cell->from_cr( $cr, group_label => $key );
+
+Builds one cell from a custom resource: a hash in CR shape or an object
+answering C<TO_JSON>. C<group_label> is the label key for L</group>. Reads
+C<metadata.name>, C<metadata.namespace>, C<metadata.labels>, C<spec.class>,
+C<spec.enabled>, C<spec.dependsOn>, C<status.phase>, C<status.conditions>,
+C<status.endpoints> and C<status.upstream>; everything else is ignored.
+
+L</dependencies> and L</missing> stay empty, since one cell alone cannot
+resolve them; use L</cells_from> for a set. Croaks with
+C<Comb without metadata.name> when there is no name (a missing, empty or
+non-string one) -- it is the only error; any other odd shape is read as absent.
+
+=cut
+
 sub cells_from {
   my ( $self, $input, %opt ) = @_;
   $input = $self->_plain($input);
@@ -114,6 +304,35 @@ sub cells_from {
   $_->_resolve( \%by_id, \%by_name ) for @cells;
   return @cells;
 }
+
+=method cells_from
+
+  my @cells = Kubernetes::Comb::SVG::Cell->cells_from( $input, group_label => $key );
+
+Returns the cells of a whole set, in input order. C<$input> is an array
+reference of custom resources, a C<List> hash with C<items>, one custom
+resource (a hash without C<items>), or an object answering C<TO_JSON> that
+turns into one of these; C<undef> gives the empty list. Options are those of
+L</from_cr>. Croaks like L</from_cr> on an element without a name. Of several
+custom resources with one L</id> the first is kept.
+
+Then every C<spec.dependsOn> entry is resolved over the set into
+L</dependencies> and L</missing>:
+
+=over
+
+=item * C<namespace/name> is the cell with exactly that L</id>.
+
+=item * A bare C<name> is the cell of that name in the dependent's own
+namespace (without namespace: the cell of that name without one), else the
+only cell of that name in the whole set.
+
+=item * No match, or several equally good ones, makes the entry
+L</missing>.
+
+=back
+
+=cut
 
 # Sorts depends_on into the ids of cells in the set and the entries that
 # match none, or more than one.
@@ -211,118 +430,6 @@ sub _message {
 }
 
 1;
-
-=head1 SYNOPSIS
-
-  use Kubernetes::Comb::SVG::Cell;
-
-  my $cell = Kubernetes::Comb::SVG::Cell->from_cr( $cr,
-    group_label => 'app.kubernetes.io/part-of' );
-
-  my @cells = Kubernetes::Comb::SVG::Cell->cells_from($list_or_array_or_cr);
-
-=head1 DESCRIPTION
-
-The only place a C<Comb> custom resource is read. A cell carries the plain
-values layout and drawing need; nothing here is escaped. Odd data degrades
-quietly -- only a Comb without C<metadata.name> is an error.
-
-=attr name
-
-C<metadata.name>. Required.
-
-=attr namespace
-
-C<metadata.namespace>, or C<undef>.
-
-=attr id
-
-C<namespace/name>, or L</name> alone without a namespace. What dependencies
-refer to and what makes a cell unique in a set. Not a constructor argument.
-
-=attr class
-
-C<spec.class>, or C<undef>.
-
-=attr phase
-
-One of L</known_phases> or C<Unknown>.
-
-=attr raw_phase
-
-C<status.phase> as the custom resource has it, or C<undef>.
-
-=attr enabled
-
-False when C<spec.enabled> is false; L</phase> is C<Disabled> then.
-
-=attr depends_on
-
-ArrayRef of the entries in C<spec.dependsOn> as they came, each C<name> or
-C<namespace/name>.
-
-=attr dependencies
-
-ArrayRef of the L</id>s of the cells this one depends on, in the order of
-L</depends_on>, without duplicates. Filled by L</cells_from>; empty on a cell
-built alone. Not a constructor argument.
-
-=attr missing
-
-ArrayRef of the L</depends_on> entries that match no cell of the set, or more
-than one. Filled by L</cells_from>; empty on a cell built alone. Not a
-constructor argument.
-
-=attr endpoints
-
-ArrayRef of C<< { name => ..., port => ... } >> from C<status.endpoints>.
-
-=attr borrowed
-
-True when C<status.upstream> is present.
-
-=attr upstream_context
-
-C<status.upstream.context>, or C<undef>.
-
-=attr upstream_via
-
-ArrayRef of the names in C<status.upstream.via>.
-
-=attr group
-
-Value of the label named by C<group_label>, or C<undef>.
-
-=attr message
-
-The condition messages, one per line, when L</phase> is not C<Running>.
-
-=method from_cr
-
-  my $cell = Kubernetes::Comb::SVG::Cell->from_cr( $cr, group_label => $key );
-
-Builds a cell from a hash in CR shape or an object answering C<TO_JSON>.
-
-=method cells_from
-
-  my @cells = Kubernetes::Comb::SVG::Cell->cells_from( $input, group_label => $key );
-
-Takes an array of custom resources, a C<List> hash with C<items>, or one
-custom resource, and returns the cells in input order. Of several with one
-L</id> the first is kept.
-
-Dependencies are resolved over the whole set into L</dependencies> and
-L</missing>: C<namespace/name> is the cell with that L</id>; a bare C<name> is
-the cell of that name in the dependent's own namespace, else the only cell of
-that name in the set.
-
-=method known_phases
-
-The phases that are drawn as themselves.
-
-=method is_known_phase
-
-  $cell->is_known_phase('Running');
 
 =seealso
 
