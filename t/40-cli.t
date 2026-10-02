@@ -196,7 +196,44 @@ for my $case ( [ 'stdin, no argument', [] ], [ 'stdin, -', ['-'] ] ) {
   is( $exit, 0,  '--help: exit 0' );
   is( $err,  '', '--help: nothing on stderr' );
   like( $out, qr/\Q$_\E/, '--help: names '.$_ )
-    for qw( --title --group-label --columns --size --no-edges --no-legend --help --version );
+    for qw( --title --group-label --layout --columns --rows --aspect --size --no-edges --no-legend
+      --help --version );
+}
+
+#### Packed layout
+
+{
+  my $file = $svg->child('wrap.json')->stringify;
+  my $DEP  = '//s:path[ '.has_class('dep').' ]';
+  for my $case (
+    [ [qw( --layout packed )], layout => 'packed' ],
+    [ [qw( --layout depth )], layout => 'depth' ],
+    [ [qw( --layout packed --columns 2 )], layout => 'packed', columns => 2 ],
+    [ [qw( --layout packed --rows 2 )], layout => 'packed', rows => 2 ],
+    [ [qw( --layout packed --aspect 16:9 )], layout => 'packed', aspect => 16 / 9 ],
+    [ [qw( --layout packed --aspect 16/9 )], layout => 'packed', aspect => 16 / 9 ],
+    [ [qw( --layout packed --aspect 9:16 )], layout => 'packed', aspect => 9 / 16 ],
+    [ [qw( --layout packed --aspect 0.5 )], layout => 'packed', aspect => 0.5 ],
+    [ [qw( --layout packed --edges )], layout => 'packed', edges => 1 ],
+    [ [qw( --layout packed --no-edges )], layout => 'packed', edges => 0 ]
+  ) {
+    my ( $args, %opt ) = @$case;
+    my ( $exit, $out, $err ) = run( [ $file, @$args ] );
+    my $name = join( ' ', @$args );
+    is( $exit, 0, $name.': exit 0' ) or diag $err;
+    is( $out, library( $file, %opt ), $name.': the picture of those options' );
+  }
+  my ( undef, $depth ) = run( [ $file, qw( --layout depth ) ] );
+  is( $depth, library($file), '--layout depth: the default picture' );
+  my ( undef, $wide ) = run( [ $file, qw( --layout packed --aspect 16:9 ) ] );
+  my ( undef, $tall ) = run( [ $file, qw( --layout packed --aspect 9:16 ) ] );
+  isnt( $wide, $tall, '--aspect: a wide and a tall screen give different pictures' );
+
+  my $chain = $svg->child('chain.json')->stringify;
+  is( picture( 'packed', [ $chain, qw( --layout packed ) ] )->findnodes($DEP)->size, 0,
+    '--layout packed: no edges by default' );
+  is( picture( 'packed --edges', [ $chain, qw( --layout packed --edges ) ] )->findnodes($DEP)->size,
+    2, '--layout packed --edges: the edges' );
 }
 
 #### Non-ASCII
@@ -237,6 +274,13 @@ failure( '--columns 2.5',  [ $chain, '--columns', '2.5' ], qr/--columns needs a 
 failure( '--columns -1',   [ $chain, '--columns=-1' ],     qr/--columns needs a positive integer/ );
 failure( '--size abc',     [ $chain, '--size', 'abc' ],    qr/--size needs a positive number/ );
 failure( '--size 0',       [ $chain, '--size', 0 ],        qr/--size needs a positive number/ );
-failure( '--title without value', [ $chain, '--title' ],   qr/title requires an argument/ );
+failure( '--layout spiral', [ $chain, '--layout', 'spiral' ], qr/--layout needs depth or packed/ );
+failure( '--rows 0',       [ $chain, '--rows', 0 ],        qr/--rows needs a positive integer/ );
+failure( '--rows 1.5',     [ $chain, '--rows', '1.5' ],    qr/--rows needs a positive integer/ );
+failure( '--aspect wide',  [ $chain, '--aspect', 'wide' ], qr/--aspect needs a positive number/ );
+failure( '--aspect 16:0',  [ $chain, '--aspect', '16:0' ], qr/--aspect needs a positive number/ );
+failure( '--aspect 0',     [ $chain, '--aspect', 0 ],      qr/--aspect needs a positive number/ );
+failure( '--aspect 16:9:1', [ $chain, '--aspect', '16:9:1' ], qr/--aspect needs a positive number/ );
+failure( '--title without value',[ $chain, '--title' ],   qr/title requires an argument/ );
 
 done_testing;

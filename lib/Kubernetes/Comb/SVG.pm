@@ -49,7 +49,7 @@ equivalent is L<comb-svg>.
 use Moo;
 use Carp qw( carp );
 use Types::Common::Numeric qw( PositiveInt PositiveNum );
-use Types::Standard qw( Any ArrayRef Bool CodeRef HashRef Maybe Object Str );
+use Types::Standard qw( Any ArrayRef Bool CodeRef Enum HashRef Maybe Object Str );
 use Kubernetes::Comb::SVG::Cell;
 use Kubernetes::Comb::SVG::Layout;
 use namespace::autoclean;
@@ -111,13 +111,62 @@ key is built in; which one groups your Combs is your choice.
 
 =cut
 
+has layout => ( is => 'ro', isa => Enum[qw( depth packed )], default => 'depth' );
+
+=attr layout
+
+Default C<depth>: inside a group a Comb sits one row below its deepest
+dependency. C<packed> is the status monitor for a wall screen: dependencies
+play no part in placement, the Combs are sorted by C<namespace/name> and fill
+the rows left to right, top to bottom, as one compact honeycomb (one per
+group with L</group_label>). A Comb keeps its place as long as the set of
+Combs is the same; a phase changing moves nothing. The grid of C<packed>
+comes from L</columns> when given, else from L</rows>, else from L</aspect>,
+and L</edges> defaults to false there.
+
+=cut
+
 has columns => ( is => 'ro', isa => PositiveInt, default => 6 );
 
 =attr columns
 
 Default C<6>, a positive integer. How many hexagons a row holds before it
 wraps into the next row. Wrapped rows stay in the group and in the dependency
-depth they belong to.
+depth they belong to. In the C<packed> L</layout> it is the cells per row and
+counts only when given: the default leaves the grid to L</rows> and
+L</aspect>.
+
+=cut
+
+# Whether columns came from the caller, see `columns` in the layout class.
+has _columns_given => ( is => 'rwp', isa => Bool, init_arg => undef, default => 0 );
+
+sub BUILD {
+  my ( $self, $args ) = @_;
+  $self->_set__columns_given(1) if exists $args->{columns};
+}
+
+has rows => ( is => 'ro', isa => PositiveInt, predicate => 'has_rows' );
+
+=attr rows
+
+Optional, a positive integer, no default. C<packed> L</layout> only, and only
+when L</columns> is not given: the number of rows of a block; the columns
+follow from the number of Combs. A block has fewer rows when its Combs do not
+fill them, and with L</group_label> it holds for every group on its own.
+
+=cut
+
+has aspect => ( is => 'ro', isa => PositiveNum, default => 16 / 9 );
+
+=attr aspect
+
+Default C<16/9>, a positive number. C<packed> L</layout> only, and only when
+neither L</columns> nor L</rows> is given: width divided by height of the
+area the picture is to fill, C<9/16> for an upright screen. The column count
+is the one whose picture -- all groups with their headings, plus padding,
+title and a legend of one row -- comes closest to that shape. A long title or
+a legend that wraps is not accounted for.
 
 =cut
 
@@ -132,13 +181,16 @@ fixed pixel size: it scales with the box that embeds it anyway.
 
 =cut
 
-has edges => ( is => 'ro', isa => Bool, default => 1 );
+has edges => ( is => 'lazy', isa => Bool );
+
+sub _build_edges { $_[0]->layout eq 'packed' ? 0 : 1 }
 
 =attr edges
 
-Default true. Draws one arrow per dependency, from the dependent Comb to the
-Comb it depends on. False leaves out the C<g.deps> group; the placement of the
-cells does not change.
+Default true, false in the C<packed> L</layout>; a given value wins in both.
+Draws one arrow per dependency, from the dependent Comb to the Comb it
+depends on. False leaves out the C<g.deps> group; the placement of the cells
+does not change.
 
 =cut
 
@@ -211,9 +263,16 @@ has _layouter => ( is => 'lazy', isa => Object, init_arg => undef );
 sub _build__layouter {
   my ( $self ) = @_;
   return $self->layout_class->new(
-    cells   => $self->cells,
-    columns => $self->columns,
-    size    => $self->size
+    cells  => $self->cells,
+    size   => $self->size,
+    mode   => $self->layout,
+    aspect => $self->aspect,
+    # What render puts around the honeycomb, the legend counted as one row.
+    frame_width  => 2 * $self->_pad,
+    frame_height => 2 * $self->_pad + $self->_title_band
+      + ( $self->legend ? $self->_legend_gap + $self->_legend_row * 0.75 : 0 ),
+    $self->_columns_given || $self->layout eq 'depth' ? ( columns => $self->columns ) : (),
+    $self->has_rows ? ( rows => $self->rows ) : ()
   );
 }
 
@@ -233,7 +292,9 @@ sub layout_class { 'Kubernetes::Comb::SVG::Layout' }
 =method layout_class
 
 Returns the class name that places the cells, C<Kubernetes::Comb::SVG::Layout>.
-It is built with C<cells>, C<columns> and C<size> and must answer C<layout>
+It is built with C<cells>, C<size>, C<mode> (the L</layout>), C<aspect>,
+C<frame_width>, C<frame_height> and, when given, C<columns> and C<rows>, and
+must answer C<layout>
 and the geometry methods of L<Kubernetes::Comb::SVG::Layout>. Override in a
 subclass to place the cells differently.
 

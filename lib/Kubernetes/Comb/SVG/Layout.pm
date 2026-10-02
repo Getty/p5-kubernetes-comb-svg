@@ -50,8 +50,8 @@ rows interlock.
 =cut
 
 use Moo;
-use Types::Common::Numeric qw( PositiveInt PositiveNum );
-use Types::Standard qw( ArrayRef Object );
+use Types::Common::Numeric qw( PositiveInt PositiveNum PositiveOrZeroNum );
+use Types::Standard qw( ArrayRef Bool Enum Object );
 use namespace::autoclean;
 
 our $VERSION = '0.001';
@@ -71,7 +71,72 @@ has columns => ( is => 'ro', isa => PositiveInt, default => 6 );
 
 =attr columns
 
-Default C<6>, a positive integer. Cells per row before a row wraps.
+Default C<6>, a positive integer. Cells per row before a row wraps. In the
+packed L</mode> it is the cells per row of every block, and only when it was
+given to the constructor: the default does not count there, so L</rows> and
+L</aspect> can apply.
+
+=cut
+
+# Whether columns came from the caller: the packed mode must tell a given 6
+# from the default 6.
+has _columns_given => ( is => 'rwp', isa => Bool, init_arg => undef, default => 0 );
+
+sub BUILD {
+  my ( $self, $args ) = @_;
+  $self->_set__columns_given(1) if exists $args->{columns};
+}
+
+has mode => ( is => 'ro', isa => Enum[qw( depth packed )], default => 'depth' );
+
+=attr mode
+
+Default C<depth>: rows by dependency depth, as described above. C<packed>
+ignores the dependencies for placement: the cells of a group are sorted by
+C<id> and fill the rows left to right, top to bottom, so a cell keeps its
+place as long as the set of cells is the same. Each group is its own packed
+block. The grid comes from L</columns> when given, else from L</rows>, else
+from L</aspect>. C<depth> and C<edges> of the result are the same in both
+modes.
+
+=cut
+
+has rows => ( is => 'ro', isa => PositiveInt, predicate => 'has_rows' );
+
+=attr rows
+
+Optional, a positive integer; C<packed> only, and only without a given
+L</columns>. Every block gets the fewest columns that fit its cells into this
+many rows, so a block has at most C<rows> rows -- fewer when its cells do not
+fill them.
+
+=cut
+
+has aspect => ( is => 'ro', isa => PositiveNum, default => 16 / 9 );
+
+=attr aspect
+
+Default C<16/9>, a positive number; C<packed> only, and only with neither a
+given L</columns> nor L</rows>. Width divided by height of the area to fill.
+All blocks get the one column count whose picture -- C<width> by C<height> of
+L</layout>, group headings included, plus the L</frame_width> and
+L</frame_height> -- comes closest to it; of two equally close the one with
+fewer columns.
+
+=cut
+
+has frame_width => ( is => 'ro', isa => PositiveOrZeroNum, default => 0 );
+
+has frame_height => ( is => 'ro', isa => PositiveOrZeroNum, default => 0 );
+
+=attr frame_width
+
+=attr frame_height
+
+Default C<0>. What the caller will add around the content (padding, a title,
+a legend), so that L</aspect> is met by the whole picture and not by the
+honeycomb alone. Only counted when choosing the columns; the result of
+L</layout> never includes it.
 
 =cut
 
@@ -178,6 +243,11 @@ sub layout {
   push @groups, [ undef, $unnamed ] if $unnamed;
   my $headings = @groups > 1 || ( @groups && defined $groups[0][0] );
 
+  my $packed  = $self->mode eq 'packed';
+  my $columns = $packed
+    ? $self->_packed_columns( [ map { scalar @{ $_->[1] } } @groups ], $headings )
+    : undef;
+
   my $radius = $self->size;
   my ( @placed, @placed_groups );
   my ( $width, $top ) = ( 0, 0 );
@@ -185,7 +255,9 @@ sub layout {
     my ( $name, $members ) = @$entry;
     $top += $self->group_gap if @placed_groups;
     my $comb_top = $top + ( $headings ? $self->heading_height : 0 );
-    my @rows = $self->_rows( $members, $depth );
+    my @rows = $packed
+      ? $self->_packed_rows( $members, $columns || $self->_ceil( @$members / $self->rows ) )
+      : $self->_rows( $members, $depth );
     for my $row ( 0 .. $#rows ) {
       my $shift = $row % 2 ? $self->step_x / 2 : 0;
       for my $column ( 0 .. $#{ $rows[$row] } ) {
@@ -371,6 +443,62 @@ sub _rows {
     push @rows, [ splice @sorted, 0, $self->columns ] while @sorted;
   }
   return @rows;
+}
+
+#### Packed
+
+# The column count all blocks share, or nothing when `rows` decides it block
+# by block. A given `columns` wins; else, without `rows`, the count whose
+# content, with the caller's frame around it, comes closest to `aspect`,
+# compared as a ratio so that too wide and too tall weigh the same.
+sub _packed_columns {
+  my ( $self, $sizes, $headings ) = @_;
+  return $self->columns if $self->_columns_given;
+  return if $self->has_rows;
+  my ( $most ) = sort { $b <=> $a } @$sizes;
+  my ( $best, $miss ) = ( 1 );
+  for my $columns ( 1 .. $most || 1 ) {
+    my ( $width, $height ) = $self->_packed_extent( $sizes, $columns, $headings );
+    my $off = abs( log( ( $width + $self->frame_width ) / ( $height + $self->frame_height ) )
+      - log( $self->aspect ) );
+    ( $best, $miss ) = ( $columns, $off ) if !defined $miss || $off < $miss;
+  }
+  return $best;
+}
+
+# Width and height of the content when blocks of these sizes are packed into
+# $columns: the same sums `layout` makes while it places the cells.
+sub _packed_extent {
+  my ( $self, $sizes, $columns, $headings ) = @_;
+  my ( $width, $height ) = ( 0, 0 );
+  for my $index ( 0 .. $#$sizes ) {
+    my $rows = $self->_ceil( $sizes->[$index] / $columns );
+    for my $row ( 0 .. $rows - 1 ) {
+      my $count = $row < $rows - 1 ? $columns : $sizes->[$index] - $row * $columns;
+      my $right = ( $row % 2 ? $self->step_x / 2 : 0 )
+        + $self->hex_width + ( $count - 1 ) * $self->step_x;
+      $width = $right if $right > $width;
+    }
+    $height += ( $index ? $self->group_gap : 0 )
+      + ( $headings ? $self->heading_height : 0 )
+      + $self->hex_height + ( $rows - 1 ) * $self->step_y;
+  }
+  return ( $width || 1, $height || 1 );
+}
+
+# The drawn rows of one packed block: sorted by id, cut into rows of
+# $columns cells.
+sub _packed_rows {
+  my ( $self, $cells, $columns ) = @_;
+  my @sorted = sort { $a->id cmp $b->id } @$cells;
+  my @rows;
+  push @rows, [ splice @sorted, 0, $columns ] while @sorted;
+  return @rows;
+}
+
+sub _ceil {
+  my ( $self, $value ) = @_;
+  return int($value) + ( $value > int($value) ? 1 : 0 );
 }
 
 # Two decimals, as a number: the same on every platform, and no '-0'.

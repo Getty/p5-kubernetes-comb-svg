@@ -4,9 +4,13 @@
 #
 #   perl -Ilib examples/demo.pl
 #
-# Both files are found next to this script, so it runs from any directory.
-# With a path as argument the picture is written there instead; that is how
-# t/50-demo.t checks that the committed demo.svg is current.
+# and the same Combs in the packed layout, the status monitor, to
+# examples/monitor.svg.
+#
+# All files are found next to this script, so it runs from any directory.
+# With a path as argument demo.svg is written there instead and monitor.svg
+# next to it; that is how t/50-demo.t checks that the committed pictures are
+# current.
 
 use strict;
 use warnings;
@@ -24,4 +28,10 @@ $out->spew_raw( Kubernetes::Comb::SVG->new(
   title       => 'Shop',
   group_label => 'app.kubernetes.io/part-of',
   columns     => 6
+)->render );
+
+$out->sibling('monitor.svg')->spew_raw( Kubernetes::Comb::SVG->new(
+  combs  => $combs,
+  title  => 'Shop',
+  layout => 'packed'
 )->render );

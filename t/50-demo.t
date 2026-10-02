@@ -30,6 +30,15 @@ ok( $fresh->is_file && $svg->is_file && $fresh->slurp_raw eq $svg->slurp_raw,
   'examples/demo.svg is what examples/demo.pl renders' )
   or diag 'examples/demo.svg is stale -- regenerate it with: perl -Ilib examples/demo.pl';
 
+# The same run writes the packed picture next to it.
+my $monitor       = $examples->child('monitor.svg');
+my $fresh_monitor = $tmp->child('monitor.svg');
+ok( $monitor->is_file, 'examples/monitor.svg is there' );
+ok( $fresh_monitor->is_file && $monitor->is_file
+    && $fresh_monitor->slurp_raw eq $monitor->slurp_raw,
+  'examples/monitor.svg is what examples/demo.pl renders' )
+  or diag 'examples/monitor.svg is stale -- regenerate it with: perl -Ilib examples/demo.pl';
+
 # What the picture has to show, asserted on the committed file.
 
 my $xpc = XML::LibXML::XPathContext->new( XML::LibXML->load_xml( string => $svg->slurp_raw ) );
@@ -75,5 +84,18 @@ for my $edge (@edges) {
 }
 ok( $across, 'an edge across groups' );
 ok( $inside, 'an edge inside a group' );
+
+# The monitor: the same Combs, packed, without edges.
+
+my $packed = XML::LibXML::XPathContext->new( XML::LibXML->load_xml( string => $monitor->slurp_raw ) );
+$packed->registerNs( s => 'http://www.w3.org/2000/svg' );
+is_deeply(
+  [ sort map { $_->getAttribute('data-id') } $packed->findnodes( '//s:g[ '.has_class('comb').' ]' ) ],
+  [ sort map { $_->getAttribute('data-id') } @combs ],
+  'monitor: the same Combs'
+);
+is( $packed->findnodes( '//s:path[ '.has_class('dep').' ]' )->size, 0, 'monitor: no edges' );
+my ( undef, undef, $width, $height ) = split ' ', $packed->findvalue('/s:svg/@viewBox');
+cmp_ok( $width, '>', $height, 'monitor: a wide picture' );
 
 done_testing;

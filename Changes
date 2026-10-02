@@ -21,5 +21,11 @@ Revision history for Kubernetes-Comb-SVG
    picture the README shows; a test fails when the committed picture is stale.
  - bin/comb-svg renders Comb custom resources from a JSON file or standard
    input (a List, an array or one resource) to an SVG on standard output, with
-   --title, --group-label, --columns, --size, --no-edges and --no-legend. Bad
+   --title, --group-label, --columns, --size, --no-edges, --no-legend,
+   --layout, --rows, --aspect and --edges. Bad
    input or options give one line on standard error and exit status 1.
+ - layout => 'packed' draws a status monitor: all Combs sorted by
+   namespace/name in one compact honeycomb that fits a screen. The grid comes
+   from columns, else rows, else aspect (default 16/9, measured on the whole
+   canvas); edges are off unless asked for. examples/monitor.svg shows it,
+   with a freshness test, and the README too.

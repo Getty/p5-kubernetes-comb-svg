@@ -5,7 +5,11 @@ resources as an SVG honeycomb.
 
 ![Honeycomb of fifteen Combs in two groups, coloured by phase, with dependency edges](examples/demo.svg)
 
-The picture is rendered from `examples/demo.json` by `examples/demo.pl`.
+The same Combs with `layout => 'packed'`, the status monitor for a wall screen:
+
+![The same fifteen Combs packed into one compact honeycomb, without edges](examples/monitor.svg)
+
+Both pictures are rendered from `examples/demo.json` by `examples/demo.pl`.
 
 ## Synopsis
 
