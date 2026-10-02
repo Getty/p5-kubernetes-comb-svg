@@ -1,0 +1,26 @@
+---
+claimed_at: 2026-10-02T02:16:12Z
+claimed_by: comb-svg-cards
+class: standard
+completed: 2026-10-02T02:16:12Z
+created: 2026-10-02T01:43:55Z
+id: 2
+priority: high
+started: 2026-10-02T02:12:03Z
+status: done
+tags:
+- lib
+- layout
+title: 'Layout: groups, depth rows, honeycomb coordinates'
+updated: 2026-10-02T02:16:12Z
+---
+
+SPEC §5. Kubernetes::Comb::SVG::Layout takes cells and options (columns, size) and returns positions plus canvas size; it knows neither CR nor SVG. Groups in name order with the unnamed group last; row = dependency depth computed over all cells; names sorted inside a row; every second row shifted by half a cell; wrap at columns. A dependency cycle must terminate (cells of a cycle share a row); unknown dependency names are ignored for placement. Coordinates rounded to a fixed precision. Tests: depth rows, wrap, groups, cycle, unknown dependency, empty input. Depends on the Cell card.
+
+2026-10-02 02:15 Layout decisions where SPEC §5 is open (size 56 in brackets): gap between hexagon sides = size/7 [8]; step_x = sqrt(3)*size + gap, step_y = step_x*sqrt(3)/2 so the gap is equal on all six sides. Heading band above a group = 0.6*size, baseline at 0.4*size, heading x = 0; gap between groups = 0.6*size. Short rows are left-aligned (centring would break the half-cell interlock and the vertical reading of columns). Row/column and the alternating shift restart per group (every group starts unshifted); 'depth' is returned separately and is global. The unnamed group gets heading room (name undef) when there are other groups; only a single unnamed group has heading undef. Content starts at 0,0 with no outer margin - margin, title and legend are the SVG seam. Layout also returns edges [{from,to}] by id, sorted, restricted to cells in the picture, self-references dropped. columns/size are typed PositiveInt/PositiveNum (Types::Common::Numeric, same dist as Types::Standard; cpanfile line added): a bad option dies at construction, odd cell data does not. Depth: iterative Tarjan SCC, depth assigned when a component closes; tested with a 20000-cell chain and cycle.
+
+2026-10-02 02:15 Also found: a wrapped depth row is indistinguishable in the picture from the next depth row (SPEC §5 says wrap into the next rows, nothing more) - possibly worth a visual cue in the SVG card or an open point in §11. A self-dependency yields no edge, so it is only visible if the tooltip lists it.
+
+2026-10-02 02:15 Done: lib/Kubernetes/Comb/SVG/Layout.pm (+POD skeleton), t/20-layout.t with fixtures t/data/layout/*.json, t/00-load.t, cpanfile (Types::Common::Numeric). Verified: prove -lr t/ -> All tests successful, Files=3, Tests=34, PASS. Not committed.
+
+2026-10-02 02:16 Committed as cdeae3e
