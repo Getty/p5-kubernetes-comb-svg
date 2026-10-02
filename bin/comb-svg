@@ -281,7 +281,8 @@ Leave out the legend of the phases. It is drawn by default.
 
 =opt --color KEY=COLOUR
 
-The colour of a phase (C<Running>, C<Error>, ...) or of a surface of the
+The colour of a phase (C<Running>, C<Pending>, C<Blocked>, C<NeedsConfig>,
+C<Disabled>, C<Error>, C<Stopped>, C<NotDeployed> or C<Unknown>) or of a surface of the
 picture (C<bg>, C<fg>, C<muted>, C<border>, C<edge>), the C<theme> of the
 module. C<KEY=LIGHT,DARK> gives one colour for light and one for dark mode; a
 comma inside parentheses, as in C<rgb(1,2,3)>, does not separate. Repeatable,
@@ -294,7 +295,7 @@ or two colours is an error.
 =opt --blink PHASES
 
 The phases whose cells pulse, separated by commas (C<Error,Blocked>);
-repeatable. Phase names are case-sensitive; a name that is no phase is
+repeatable. Phase names are the eight phases and C<Unknown>, case-sensitive; a name that is no phase is
 ignored. Where the viewer asks for reduced motion the cells do not move and
 have a thicker outline instead. Without the option nothing is animated.
 

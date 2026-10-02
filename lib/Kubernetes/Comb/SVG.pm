@@ -263,6 +263,10 @@ Accepted are C<#rgb>, C<#rgba>, C<#rrggbb>, C<#rrggbbaa>, a colour name
 numbers; any other value falls back to the built-in colour, for each mode on
 its own. Every colour ends up as a custom property, see L</THE PICTURE>.
 
+The built-in phase colours (light / dark) include C<Stopped>, cyan
+(C<#0891b2> / C<#39c5cf>), and C<NotDeployed>, blue (C<#0969da> /
+C<#58a6ff>); the other phases and the surfaces have defaults of their own.
+
 =cut
 
 has blink => ( is => 'ro', isa => ArrayRef[Str], default => sub { [] } );
@@ -1182,39 +1186,57 @@ Comb really takes its service from an upstream layer (dashed outline, a line
 naming the upstream context; see
 L<borrowed|Kubernetes::Comb::SVG::Cell/borrowed>: an upstream is recorded, it
 is not unreachable, and the phase is Running or Pending) and C<disabled> for a
-Disabled one. Attributes:
-C<data-name> (C<metadata.name>), C<data-id> (C<namespace/name>, or the name
-alone), C<data-phase>. Inside: a C<< <title> >> tooltip (id, namespace, class,
-phase, the message when the phase is not Running, endpoints, upstream,
-missing dependencies; the upstream line is there for every Comb that records
-one, C<upstream: E<lt>classE<gt>, context E<lt>contextE<gt>>, either part
-alone when the other is absent, C<upstream: recorded> with neither, followed
-by C<(not borrowing)> when the cell is not borrowed, and a C<via:> line when
-the upstream names a chain), C<polygon.hex>, C<text.name>, C<text.phase>, for a
-Comb that is not Running and says why, C<text.reason> and, for a borrowed
-Comb, C<text.upstream>, in this order top to bottom. The reason line is what
-a wall screen shows in place of the tooltip: the
+Disabled one. Attributes: C<data-name> (C<metadata.name>), C<data-id>
+(C<namespace/name>, or the name alone), C<data-phase>. With L</link> the group
+sits inside an C<< <a> >>. Inside, in this order:
+
+=over
+
+=item * C<< <title> >>, the tooltip: id, namespace, class, phase, the message
+when the phase is not Running, endpoints, upstream, missing dependencies. The
+upstream line is there for every Comb that records one:
+C<upstream: E<lt>classE<gt>, context E<lt>contextE<gt>>, either part alone
+when the other is absent, C<upstream: recorded> with neither, followed by
+C<(not borrowing)> when the cell is not borrowed; a C<via:> line follows when
+the upstream names a chain. The tooltip also carries the full name of a cell
+whose drawn name had to be cut.
+
+=item * C<polygon.hex>, the hexagon.
+
+=item * C<text.name>, the name. A name that fits stays on one line. One that
+does not is broken into two after a hyphen, a dot or an underscore, each line a
+C<< <tspan> >> inside C<text.name>, at the break that leaves the shortest
+longer line. When the two lines are still too wide the element has the class
+C<name-small> as well and a smaller font (13 characters a line instead of 11).
+Only what fits neither way is cut with an ellipsis, as is a too long name
+without such a character.
+
+=item * C<text.phase>, the phase, always written as text, never by colour
+alone.
+
+=item * C<text.reason>, only for a Comb that is not Running and says why: the
 L<reason|Kubernetes::Comb::SVG::Cell/reason> of the cell in small text, 16
-characters a line; a Running cell never has it. A reason too long for one
-line is broken into two, each a C<< <tspan> >> inside C<text.reason>: at a
-run of whitespace, which is dropped, or before an upper-case letter that
-follows a lower-case letter or a digit (C<Missing> / C<Prerequisites>), at
-the break that leaves the shortest longer line. When no break makes both
-lines fit, the last one whose first line fits is taken and the second line
-is cut with an ellipsis; a reason without such a break is cut on its one
-line. So is every too long reason in a cell that has no room for a sixth
-line of text: a name on two lines, the phase and an upstream line. Under a
-name on two lines the second reason line sits where the hexagon narrows and
-holds 14 characters, 15 under a name in the smaller font. A cell with a
-reason line and more than three lines of text sets them closer together, the
-phase a little further from the name than the name lines are from each
-other. A name that does not fit on one line is
-broken into two after a hyphen, a dot or an underscore, each line a
-C<< <tspan> >> inside C<text.name>; when the two lines are still too wide the
-element has the class C<name-small> as well and a smaller font. Only what
-fits neither way is cut with an ellipsis, as is a too long name without such
-a character; the full name is in the tooltip. With L</link> the group sits inside an
-C<< <a> >>. The phase is always written as text, never by colour alone.
+characters a line. It is what a wall screen shows in place of the tooltip; a
+Running cell never has it. A reason too long for one line is broken into two,
+each a C<< <tspan> >> inside C<text.reason>: at a run of whitespace, which is
+dropped, or before an upper-case letter that follows a lower-case letter or a
+digit (C<Missing> / C<Prerequisites>), at the break that leaves the shortest
+longer line. When no break makes both lines fit, the last one whose first line
+fits is taken and the second line is cut with an ellipsis; a reason without
+such a break is cut on its one line. The six-line exception: a cell with no
+room for a sixth line of text -- a name on two lines, the phase, two reason
+lines and an upstream line -- cuts a too long reason on one line as well.
+Under a name on two lines the second reason line sits where the hexagon
+narrows and holds 14 characters, 15 under a name in the smaller font.
+
+=item * C<text.upstream>, only for a borrowed Comb: C<from E<lt>contextE<gt>>,
+or C<borrowed> when no context is recorded.
+
+=back
+
+A cell with a reason line and more than three lines of text sets them closer
+together, the phase a little further from the name than the name lines are
+from each other.
 
 =item * C<g.deps> holds one C<path.dep> per dependency, with C<data-from> (the
 dependent) and C<data-to> (the dependency) as ids, an arrowhead at the
