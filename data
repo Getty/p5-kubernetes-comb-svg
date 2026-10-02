@@ -1,0 +1,22 @@
+---
+claimed_at: 2026-10-02T02:51:41Z
+claimed_by: comb-svg-cards
+class: standard
+completed: 2026-10-02T02:51:41Z
+created: 2026-10-02T01:43:57Z
+id: 6
+priority: medium
+started: 2026-10-02T02:45:59Z
+status: done
+tags:
+- docs
+- pod
+title: POD for the public API
+updated: 2026-10-02T02:51:41Z
+---
+
+House-format POD for Kubernetes::Comb::SVG (every option with default and effect), ::Cell, ::Layout and bin/comb-svg. Depends on the implementation cards.
+
+POD written by pod-writer for SVG, Cell, Layout and bin/comb-svg. Coordinator check: code lines identical to HEAD with POD stripped, perl -c ok, prove 252 tests PASS, dzil build weaves, podchecker clean on the four built files.
+
+2026-10-02 02:51 Committed as 5389c9c (Document the public API). POD only; no Changes entry: first release is still unreleased and documentation is not a user-visible behavior change.
