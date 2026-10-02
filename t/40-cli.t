@@ -197,7 +197,71 @@ for my $case ( [ 'stdin, no argument', [] ], [ 'stdin, -', ['-'] ] ) {
   is( $err,  '', '--help: nothing on stderr' );
   like( $out, qr/\Q$_\E/, '--help: names '.$_ )
     for qw( --title --group-label --layout --columns --rows --aspect --size --no-edges --no-legend
-      --help --version );
+      --color --blink --blink-seconds --help --version );
+}
+
+#### Colours and blink
+
+{
+  my $file = $svg->child('phases.json')->stringify;
+  for my $case (
+    [ [ "--color", "Error=#ff0033" ], theme => { Error => '#ff0033' } ],
+    [ [ "--color", "Error=#ff0033,#ff6677" ], theme => { Error => { light => '#ff0033', dark => '#ff6677' } } ],
+    [ [ '--color', 'Error=rgb(1,2,3)' ], theme => { Error => 'rgb(1,2,3)' } ],
+    [ [ '--color', 'bg=rgb(1,2,3),hsl(0, 0%, 5%)' ],
+      theme => { bg => { light => 'rgb(1,2,3)', dark => 'hsl(0, 0%, 5%)' } } ],
+    [ [ '--color', 'fg=black,rgba(255,255,255,.9)' ],
+      theme => { fg => { light => 'black', dark => 'rgba(255,255,255,.9)' } } ],
+    [ [ "--color", "Error=,#ff6677" ], theme => { Error => { dark => '#ff6677' } } ],
+    [ [ "--color", "Error=#ff0033," ], theme => { Error => { light => '#ff0033' } } ],
+    [ [ "--color", "Error=red", "--color", "bg=#000", "--color", "Error=blue" ], theme => { Error => 'blue', bg => '#000' } ],
+    [ [ "--color=edge=teal" ], theme => { edge => 'teal' } ],
+    [ [ "--blink", "Error,Blocked" ], blink => [qw( Error Blocked )] ],
+    [ [qw( --blink Error --blink Blocked )], blink => [qw( Error Blocked )] ],
+    [ [qw( --blink Error --blink-seconds 2.5 )], blink => ['Error'], blink_seconds => 2.5 ],
+    [ [qw( --blink Error --blink-seconds .5 )], blink => ['Error'], blink_seconds => 0.5 ]
+  ) {
+    my ( $args, %opt ) = @$case;
+    my ( $exit, $out, $err ) = run( [ $file, @$args ] );
+    my $name = join( ' ', @$args );
+    is( $exit, 0, $name.': exit 0' ) or diag $err;
+    is( $out, library( $file, %opt ), $name.': the picture of those options' );
+    isnt( $out, library($file), $name.': not the default picture' );
+  }
+
+  my $css = picture( 'rgb with commas', [ $file, '--color', 'Error=rgb(1,2,3),rgb(4,5,6)' ] )
+    ->findvalue('//s:style');
+  like( $css, qr/\A\.comb-svg\{[^}]*--comb-error:rgb\(1,2,3\)[;}]/, 'rgb(1,2,3),rgb(4,5,6): light' );
+  like( $css, qr/prefers-color-scheme:dark\)\{\.comb-svg\{[^}]*--comb-error:rgb\(4,5,6\)[;}]/,
+    'rgb(1,2,3),rgb(4,5,6): dark' );
+
+  # What the module ignores gives the default picture, not an error.
+  for my $args (
+    [ '--color', 'Error=red;}</style><script>x</script>' ],
+    [ "--color", "Bogus=#ff0033" ],
+    [ "--color", "Error=url(x)" ],
+    [ "--blink", "Bogus" ],
+    [ "--blink", "," ],
+    [qw( --blink-seconds 3 )]
+  ) {
+    my ( $exit, $out, $err ) = run( [ $file, @$args ] );
+    my $name = join( ' ', @$args );
+    is( $exit, 0, $name.': exit 0' ) or diag $err;
+    is( $out, library($file), $name.': ignored, the default picture' );
+  }
+  my ( undef, $mixed ) = run( [ $file, "--blink", "Error,Bogus,,error" ] );
+  is( $mixed, library( $file, blink => ['Error'] ), '--blink Error,Bogus,,error: only Error blinks' );
+  unlike( library($file), qr/animation|keyframes/, 'no --blink: no animation CSS' );
+
+  failure( '--color without =',   [ $file, '--color', 'red' ],        qr/--color needs KEY=COLOUR/ );
+  failure( '--color without key', [ $file, '--color', '=red' ],       qr/--color needs KEY=COLOUR/ );
+  failure( '--color without colour', [ $file, '--color', 'Error=' ],  qr/--color needs KEY=COLOUR/ );
+  failure( '--color three colours', [ $file, '--color', 'Error=a,b,c' ], qr/--color needs KEY=COLOUR/ );
+  failure( '--blink-seconds 0',   [ $file, '--blink-seconds', 0 ],    qr/--blink-seconds needs a positive number/ );
+  failure( '--blink-seconds fast', [ $file, '--blink-seconds', 'fast' ], qr/--blink-seconds needs a positive number/ );
+  failure( '--blink-seconds -1',  [ $file, '--blink-seconds=-1' ],    qr/--blink-seconds needs a positive number/ );
+  failure( '--blink-seconds 1e3', [ $file, '--blink-seconds', '1e3' ], qr/--blink-seconds needs a positive number/ );
+  failure( '--blink without value', [ $file, '--blink' ],             qr/blink requires an argument/ );
 }
 
 #### Packed layout

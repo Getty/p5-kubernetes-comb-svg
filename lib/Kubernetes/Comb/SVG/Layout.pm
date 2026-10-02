@@ -1,5 +1,5 @@
 package Kubernetes::Comb::SVG::Layout;
-# ABSTRACT: Places cells in groups, dependency rows and a honeycomb
+# ABSTRACT: Places cells in groups and a honeycomb, by dependency depth or packed
 
 =synopsis
 
@@ -15,11 +15,25 @@ package Kubernetes::Comb::SVG::Layout;
     # $cell->{id}, $cell->{x}, $cell->{y}, $cell->{row}, $cell->{column}
   }
 
+  # packed, for a 16:9 screen: no dependency rows, a compact block
+  my $packed = Kubernetes::Comb::SVG::Layout->new(
+    cells  => \@cells,
+    mode   => 'packed',
+    aspect => 16 / 9
+  )->layout;
+
 =description
 
 Places cells in a honeycomb and returns plain data. It knows neither the
 custom resource nor SVG: a cell is anything answering C<id>, C<name>,
 C<group> and C<dependencies>, as L<Kubernetes::Comb::SVG::Cell> does.
+
+There are two modes, see L</mode>. In C<depth>, the default, a cell sits in
+the row of its dependency depth. In C<packed>, the status monitor, the
+dependencies play no part in placement: the cells of a group are sorted by
+C<id> and fill one compact honeycomb, its shape chosen by L</columns>, else
+L</rows>, else L</aspect>. The rules below on groups, hexagons and the result
+hold for both; those on depth and rows by name are the C<depth> mode.
 
 =over
 
@@ -96,8 +110,9 @@ ignores the dependencies for placement: the cells of a group are sorted by
 C<id> and fill the rows left to right, top to bottom, so a cell keeps its
 place as long as the set of cells is the same. Each group is its own packed
 block. The grid comes from L</columns> when given, else from L</rows>, else
-from L</aspect>. C<depth> and C<edges> of the result are the same in both
-modes.
+from L</aspect>. The C<depth> of each cell and the C<edges> in the result are
+computed the same way in both modes; in C<packed> the depth is data only and
+does not decide the row.
 
 =cut
 
@@ -127,16 +142,21 @@ fewer columns.
 
 has frame_width => ( is => 'ro', isa => PositiveOrZeroNum, default => 0 );
 
-has frame_height => ( is => 'ro', isa => PositiveOrZeroNum, default => 0 );
-
 =attr frame_width
+
+Default C<0>, a number of at least zero. The width the caller will add around
+the content (padding on both sides), so that L</aspect> is met by the whole
+picture and not by the honeycomb alone. Only counted when choosing the
+columns by C<aspect>; the result of L</layout> never includes it.
+
+=cut
+
+has frame_height => ( is => 'ro', isa => PositiveOrZeroNum, default => 0 );
 
 =attr frame_height
 
-Default C<0>. What the caller will add around the content (padding, a title,
-a legend), so that L</aspect> is met by the whole picture and not by the
-honeycomb alone. Only counted when choosing the columns; the result of
-L</layout> never includes it.
+Default C<0>, a number of at least zero. The height the caller will add around
+the content (padding, title, legend); see L</frame_width>.
 
 =cut
 

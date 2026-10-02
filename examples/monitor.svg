@@ -29,7 +29,11 @@
 .comb-svg a{cursor:pointer;text-decoration:none}
 .comb-svg .legend text{font-size:10.64px;fill:var(--comb-muted)}
 .comb-svg .legend .hex{stroke-width:1.12}
-.comb-svg .legend .count{font-weight:600;fill:var(--comb-fg)}</style>
+.comb-svg .legend .count{font-weight:600;fill:var(--comb-fg)}
+@keyframes comb-blink{50%{fill-opacity:.4;stroke-width:3.92}}
+.comb-svg .comb.phase-Error .hex{animation:comb-blink 1.2s ease-in-out infinite}
+.comb-svg .comb.phase-Error .phase{fill:var(--comb-fg)}
+@media (prefers-reduced-motion:reduce){.comb-svg .comb.phase-Error .hex{animation:none;stroke-width:3.92}}</style>
 <defs><marker id="comb-arrow" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="8.96" markerHeight="8.96" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow" d="M0 1L10 5L0 9z"/></marker></defs>
 <rect class="panel" x="0.5" y="0.5" width="723.87" height="431.74" rx="12.32"/>
 <text class="heading" x="25.2" y="40.43">Shop</text>

@@ -490,10 +490,156 @@ subtest 'theme' => sub {
     is( count( $xpc, '//*[local-name()="script"]' ), 0, '  no script' );
   }
 
-  my $xpc = picture( 'phases', theme => { Bogus => '#123456', bg => '#123456' } );
+  my $xpc = picture( 'phases', theme => { Bogus => '#123456', running => '#123456', BG => '#123456' } );
   my $style = style_text($xpc);
-  unlike( $style, qr/--comb-bogus|#123456/, 'unknown key is ignored' );
-  like( $style, qr/--comb-bg:#ffffff/, 'a non-phase key does not touch the base colours' );
+  unlike( $style, qr/--comb-bogus|#123456/, 'unknown key and wrong case are ignored' );
+  like( $style, qr/--comb-bg:#ffffff/, 'the base colours keep their default' );
+};
+
+# The two blocks of custom properties: what .comb-svg carries in light mode
+# and what the prefers-color-scheme dark block overrides.
+sub modes {
+  my ( $css ) = @_;
+  my ( $light ) = $css =~ /\A\.comb-svg\{([^}]*)\}/;
+  my ( $dark )  = $css =~ /\@media \(prefers-color-scheme:dark\)\{\.comb-svg\{([^}]*)\}\}/;
+  return map { +{ map { split /:/, $_, 2 } split /;/, $_ } } $light, $dark;
+}
+
+subtest 'theme: light and dark' => sub {
+  my ( $light, $dark ) = modes( style_text( picture(
+    'phases',
+    theme => {
+      Error   => { light => '#110000', dark => 'rgb(255, 0, 0)' },
+      Running => { dark => '#00ff00' },
+      Pending => { light => 'gold' },
+      Blocked => '#abcdef',
+      Unknown => { light => 'url(http://evil/x)', dark => '#222222' },
+      Disabled => { light => 'red;}</style><script>x</script>', dark => '}' },
+      NeedsConfig => { Light => '#123123', other => '#123123' }
+    }
+  ) ) );
+  is( $light->{'--comb-error'}, '#110000', 'light value in the light block' );
+  is( $dark->{'--comb-error'}, 'rgb(255, 0, 0)', 'dark value in the dark block' );
+  is( $light->{'--comb-running'}, '#1a7f37', 'a missing light keeps the default' );
+  is( $dark->{'--comb-running'},  '#00ff00', '  next to the given dark' );
+  is( $light->{'--comb-pending'}, 'gold',    'a given light' );
+  is( $dark->{'--comb-pending'},  '#e3b341', '  next to the default dark' );
+  is( $light->{'--comb-blocked'}.$dark->{'--comb-blocked'}, '#abcdef#abcdef', 'one colour serves both' );
+  is( $light->{'--comb-unknown'}, '#475569', 'a bad light falls back on its own' );
+  is( $dark->{'--comb-unknown'},  '#222222', '  the good dark is kept' );
+  is( $light->{'--comb-disabled'}.$dark->{'--comb-disabled'}, '#8c959f#6e7681', 'both bad: both defaults' );
+  is( $light->{'--comb-needsconfig'}.$dark->{'--comb-needsconfig'}, '#8250df#a371f7',
+    'hash keys other than light and dark are ignored' );
+
+  my $svg = $SVG->new( combs => fixture('phases'),
+    theme => { Error => { light => 'red;}</style><script>x</script>', dark => 'expression(evil)' },
+      bg => { light => '#fff</style>', dark => 'url(//evil)' } } )->render;
+  my $xpc = parse($svg);
+  unlike( $svg, qr/evil|script|expression/, 'nothing of a hostile mode value reaches the output' );
+  is( count( $xpc, '//s:style' ), 1, '  one style element' );
+  is( count( $xpc, '//*[local-name()="script"]' ), 0, '  no script' );
+};
+
+subtest 'theme: surfaces' => sub {
+  my %default = ( bg => [ '#ffffff', '#0d1117' ], border => [ '#d0d7de', '#30363d' ],
+    fg => [ '#1f2328', '#e6edf3' ], muted => [ '#59636e', '#9198a1' ], edge => [ '#57606a', '#9198a1' ] );
+  my ( $light, $dark ) = modes( style_text( picture('phases') ) );
+  for my $key ( sort keys %default ) {
+    is_deeply( [ $light->{ '--comb-'.$key }, $dark->{ '--comb-'.$key } ], $default{$key}, $key.': default' );
+  }
+  ( $light, $dark ) = modes( style_text( picture(
+    'phases',
+    theme => {
+      bg     => { light => '#fafafa', dark => '#000000' },
+      fg     => 'hsl(210, 10%, 20%)',
+      muted  => { dark => 'silver' },
+      border => 'javascript:alert(1)',
+      edge   => { light => '#101010', dark => 'x;y' }
+    }
+  ) ) );
+  is_deeply( [ $light->{'--comb-bg'}, $dark->{'--comb-bg'} ], [ '#fafafa', '#000000' ], 'bg: light and dark' );
+  is_deeply( [ $light->{'--comb-fg'}, $dark->{'--comb-fg'} ], [ ('hsl(210, 10%, 20%)') x 2 ], 'fg: one colour for both' );
+  is_deeply( [ $light->{'--comb-muted'}, $dark->{'--comb-muted'} ], [ '#59636e', 'silver' ], 'muted: dark only' );
+  is_deeply( [ $light->{'--comb-border'}, $dark->{'--comb-border'} ], $default{border}, 'border: a bad colour falls back' );
+  is_deeply( [ $light->{'--comb-edge'}, $dark->{'--comb-edge'} ], [ '#101010', '#9198a1' ], 'edge: bad dark falls back alone' );
+  is( $light->{'--comb-running'}, '#1a7f37', 'phases untouched' );
+};
+
+my $ANIMATION = qr/animation|keyframes|reduced-motion|comb-blink/;
+
+subtest 'blink' => sub {
+  my $plain = $SVG->new( combs => fixture('phases') )->render;
+  unlike( $plain, $ANIMATION, 'no blink: no animation CSS at all' );
+  is( $SVG->new( combs => fixture('phases'), blink => [] )->render, $plain, 'empty blink: the same bytes' );
+  is( $SVG->new( combs => fixture('phases'), blink_seconds => 3 )->render, $plain,
+    'blink_seconds without blink: the same bytes' );
+
+  my $xpc = picture( 'phases', blink => [ 'Error', 'Blocked' ] );
+  my $css = style_text($xpc);
+  is( count( $xpc, '//s:style' ), 1, 'still one style element' );
+  is( count( $xpc, '//*[local-name()="script" or local-name()="animate" or local-name()="set"]' ), 0,
+    'no script, no SMIL: the animation is CSS' );
+  my @keyframes = $css =~ /(\@keyframes [\w-]+)/g;
+  is_deeply( \@keyframes, ['@keyframes comb-blink'], 'one keyframes rule, its name prefixed' );
+  like( $css, qr/\@keyframes comb-blink\{50%\{fill-opacity:[\d.]+;stroke-width:[\d.]+\}\}/,
+    'the pulse touches fill-opacity and stroke-width of the hexagon only' );
+  unlike( $css, qr/\@keyframes[^\n]*(?<!fill-)opacity:0?(?:\.0+)?[;}]/, 'nothing fades to nothing' );
+
+  my ( $rule ) = $css =~ /^([^\n@]*)\{animation:comb-blink 1\.2s ease-in-out infinite\}$/m;
+  ok( defined $rule, 'animation rule: the default period, eased, endless' );
+  is_deeply( [ split /,/, $rule ],
+    [ '.comb-svg .comb.phase-Blocked .hex', '.comb-svg .comb.phase-Error .hex' ],
+    'for the hexagons of the named phases only' );
+  my @blinking = $css =~ /\.comb\.phase-(\w+)/g;
+  is_deeply( [ sort keys %{ { map { $_ => 1 } @blinking } } ], [qw( Blocked Error )],
+    'no other phase in any blink rule' );
+
+  my ( $reduced ) = $css =~ /^\@media \(prefers-reduced-motion:reduce\)\{(.*)\}$/m;
+  ok( defined $reduced, 'a prefers-reduced-motion block' );
+  my ( $selector, $body ) = $reduced =~ /\A([^{]*)\{([^}]*)\}\z/;
+  is( $selector, $rule, '  for the same cells' );
+  like( $body, qr/\Aanimation:none;stroke-width:([\d.]+)\z/, '  animation off, an outline width instead' );
+  my ( $thick ) = $body =~ /stroke-width:([\d.]+)/;
+  my ( $normal ) = $css =~ /\.comb-svg \.hex\{[^}]*stroke-width:([\d.]+)/;
+  cmp_ok( $thick, '>', $normal, '  thicker than the normal outline' );
+
+  my %phase = map { $_->getAttribute('data-phase') => classes($_) } combs($xpc);
+  ok( $phase{Error}{comb} && $phase{Error}{'phase-Error'}, 'the cells carry the classes the rules select' );
+  is( count( $xpc, '//s:g[ '.has_class('legend-item').' ][ '.has_class('comb').' ]' ), 0,
+    'legend swatches are no g.comb: they do not blink' );
+
+  for my $case ( [ 2.5, '2.5s' ], [ 1, '1s' ], [ 0.333, '0.33s' ], [ 0.0001, '0.01s' ], [ 9**9**9, '1.2s' ],
+    [ 1e30, '1.2s' ] ) {
+    my ( $seconds, $want ) = @$case;
+    my $style = style_text( picture( 'phases', blink => ['Error'], blink_seconds => $seconds ) );
+    my ( $got ) = $style =~ /animation:comb-blink (\S+) /;
+    is( $got, $want, 'blink_seconds '.$seconds.' is written as '.$want );
+  }
+
+  my $one = $SVG->new( combs => fixture('phases'), blink => ['Error'] )->render;
+  for my $case (
+    [ 'unknown phase' => [ 'Error', 'Bogus' ] ],
+    [ 'wrong case' => [ 'Error', 'blocked' ] ],
+    [ 'hostile name' => [ 'Error', 'x .hex{}</style><script>alert(1)</script>', 'Error{fill:url(//evil)}' ] ],
+    [ 'duplicates' => [ 'Error', 'Error', 'Error' ] ]
+  ) {
+    my ( $name, $blink ) = @$case;
+    is( $SVG->new( combs => fixture('phases'), blink => $blink )->render, $one, $name.': ignored, same bytes' );
+  }
+  is( $SVG->new( combs => fixture('phases'), blink => [ 'Bogus', '' ] )->render, $plain,
+    'only unknown phases: no animation CSS, the plain picture' );
+
+  my $all = style_text( picture( 'phases', blink => [ reverse $SVG->phases ] ) );
+  my ( $every ) = $all =~ /^([^\n@]*)\{animation:comb-blink /m;
+  is_deeply( [ $every =~ /\.comb\.phase-(\w+) \.hex/g ], [ $SVG->phases ],
+    'every phase can blink, written in the order of the legend' );
+
+  is( $SVG->new( combs => fixture('phases'), blink => [qw( Error Blocked Pending )] )->render,
+    $SVG->new( combs => fixture('phases'), blink => [qw( Pending Error Blocked Error )] )->render,
+    'determinism: order and repeats in blink do not change the bytes' );
+
+  ok( !eval { $SVG->new( combs => [], blink => 'Error' ); 1 }, 'blink that is no array dies' );
+  ok( !eval { $SVG->new( combs => [], blink_seconds => $_ ); 1 }, 'blink_seconds '.$_.' dies' ) for 0, -1, 'fast';
 };
 
 subtest 'size and columns' => sub {

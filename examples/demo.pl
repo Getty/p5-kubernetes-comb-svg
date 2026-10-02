@@ -33,5 +33,6 @@ $out->spew_raw( Kubernetes::Comb::SVG->new(
 $out->sibling('monitor.svg')->spew_raw( Kubernetes::Comb::SVG->new(
   combs  => $combs,
   title  => 'Shop',
-  layout => 'packed'
+  layout => 'packed',
+  blink  => ['Error']
 )->render );

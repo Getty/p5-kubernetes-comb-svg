@@ -14,18 +14,28 @@ Revision history for Kubernetes-Comb-SVG
  - Kubernetes::Comb::SVG->render draws the honeycomb: phase-coloured hexagons,
    borrowed and disabled states, dependency edges routed through the label-free
    corners (cycles in a row bow in opposite directions) and starting at a small
-   dot just inside the dependent's outline, legend, link callback,
-   theme, light and dark colour schemes.
+   dot just inside the dependent's outline, legend, link callback, light and
+   dark colour schemes.
+ - theme sets phase colours and the surfaces of the picture (bg, fg, muted,
+   border, edge); a value is one colour or { light => ..., dark => ... }, and
+   a bad colour falls back to the default of its mode. The colours are CSS
+   custom properties (--comb-*), documented with the classes as the styling
+   interface.
+ - blink and blink_seconds make cells of the named phases pulse through a CSS
+   animation (comb-blink, no script); with prefers-reduced-motion they get a
+   thicker outline instead. Without blink the SVG carries no animation CSS.
  - examples/demo.pl renders examples/demo.json (fifteen Combs in two groups,
    every phase, a borrowed and a disabled Comb) to examples/demo.svg, the
    picture the README shows; a test fails when the committed picture is stale.
  - bin/comb-svg renders Comb custom resources from a JSON file or standard
    input (a List, an array or one resource) to an SVG on standard output, with
    --title, --group-label, --columns, --size, --no-edges, --no-legend,
-   --layout, --rows, --aspect and --edges. Bad
+   --layout, --rows, --aspect, --edges, --color KEY=COLOUR or
+   KEY=LIGHT,DARK (repeatable), --blink and --blink-seconds. Bad
    input or options give one line on standard error and exit status 1.
  - layout => 'packed' draws a status monitor: all Combs sorted by
    namespace/name in one compact honeycomb that fits a screen. The grid comes
    from columns, else rows, else aspect (default 16/9, measured on the whole
-   canvas); edges are off unless asked for. examples/monitor.svg shows it,
+   canvas); edges are off unless asked for. examples/monitor.svg shows it
+   (blinking for Error),
    with a freshness test, and the README too.

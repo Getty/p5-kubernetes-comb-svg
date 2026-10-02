@@ -11,7 +11,16 @@ package Kubernetes::Comb::SVG;
     group_label => 'app.kubernetes.io/part-of',
     columns     => 4,
     link        => sub { '/combs/'.$_[0]->name },
-    theme       => { Running => '#2da44e' }
+    theme       => { Running => '#2da44e', bg => { light => '#fff', dark => '#000' } },
+    blink       => ['Error']
+  )->render;
+
+  # A status monitor for a wall screen: packed, shaped for a 16:9 display
+  my $monitor = Kubernetes::Comb::SVG->new(
+    combs  => \@combs,
+    layout => 'packed',
+    aspect => 16 / 9,
+    blink  => [ 'Error', 'Blocked' ]
   )->render;
 
   # @combs: hashes in CR shape, e.g.
@@ -25,6 +34,10 @@ package Kubernetes::Comb::SVG;
 Draws a set of L<Kubernetes::Comb> custom resources as one self-contained SVG
 document: a honeycomb with one hexagon per Comb, coloured by its phase, with
 the dependencies drawn between them and a legend of the phases that occur.
+The Combs are placed by dependency depth, or, as a status monitor, packed into
+one compact honeycomb, see L</layout>; the colours follow the light or dark
+mode of the viewer and can be set by option or by the embedding page, see
+L</theme> and L</THE PICTURE>.
 Data in, string out: the dist never talks to a cluster -- the caller fetches
 the custom resources (C<kubectl get combs -A -o json>, a client library, a
 fixture) and hands them in. L<Kubernetes::Comb> and L<IO::K8s> are not
@@ -227,20 +240,53 @@ has theme => ( is => 'ro', isa => HashRef, default => sub { {} } );
 
 =attr theme
 
-Default C<{}>. A hash from phase name (C<Running>, C<Pending>, C<Blocked>,
-C<NeedsConfig>, C<Disabled>, C<Error>, C<Unknown>, see L</phases>) to colour,
-merged over the built-in colours; keys that are no phase are ignored.
+Default C<{}>. A hash from key to colour, merged over the built-in colours.
+The keys are the phase names (C<Running>, C<Pending>, C<Blocked>,
+C<NeedsConfig>, C<Disabled>, C<Error>, C<Unknown>, see L</phases>) and the
+surfaces of the picture: C<bg> (the panel), C<fg> (text), C<muted> (secondary
+text), C<border> (panel outline and group rules) and C<edge> (dependency
+edges). Keys are case-sensitive; any other key is ignored.
 
-  theme => { Running => '#2da44e', Error => 'crimson' }
+  theme => {
+    Running => '#2da44e',
+    Error   => { light => 'crimson', dark => '#ff6b6b' },
+    bg      => { light => '#ffffff', dark => '#000000' }
+  }
 
-The colour is the outline of the hexagon; its fill is the same colour at low
-opacity, so the text stays readable whatever colour is chosen. Accepted are
-C<#rgb>, C<#rgba>, C<#rrggbb>, C<#rrggbbaa>, a colour name (letters only) and
-C<rgb()>, C<rgba()>, C<hsl()>, C<hsla()> over plain numbers; any other value
-falls back to the built-in colour of that phase. One value serves light and
-dark mode, while the built-in colours differ between the two. The page
-colours (background, text, borders) are not themable here, see
-L</THE PICTURE>.
+A value is one colour, used in light and in dark mode, or a hash with
+C<light> and C<dark>; a mode the hash leaves out keeps its built-in colour.
+The colour of a phase is the outline of the hexagon; its fill is the same
+colour at low opacity, so the text stays readable whatever colour is chosen.
+Accepted are C<#rgb>, C<#rgba>, C<#rrggbb>, C<#rrggbbaa>, a colour name
+(letters only) and C<rgb()>, C<rgba()>, C<hsl()>, C<hsla()> over plain
+numbers; any other value falls back to the built-in colour, for each mode on
+its own. Every colour ends up as a custom property, see L</THE PICTURE>.
+
+=cut
+
+has blink => ( is => 'ro', isa => ArrayRef[Str], default => sub { [] } );
+
+=attr blink
+
+Default C<[]>. The phases (see L</phases>, case-sensitive) whose cells pulse,
+for a screen on which an C<Error> has to catch the eye:
+
+  blink => [ 'Error', 'Blocked' ]
+
+The pulse is a CSS animation in the C<< <style> >> of the picture, no script:
+fill and outline of the hexagon swell and settle, the texts stay as they are.
+Where the viewer asks for reduced motion nothing moves and the cell has a
+thicker outline instead. A name that is no phase is ignored; order and
+repeats do not matter. Without it the picture carries no animation at all.
+
+=cut
+
+has blink_seconds => ( is => 'ro', isa => PositiveNum, default => 1.2 );
+
+=attr blink_seconds
+
+Default C<1.2>, a positive number. The period of the pulse of L</blink> in
+seconds, there and back. Written with two decimals, C<0.01> at the least.
 
 =cut
 
@@ -343,16 +389,61 @@ sub _base_colours {
   );
 }
 
-# A theme value is used only when it is plain colour syntax: #hex, a colour
-# name, or rgb()/hsl() over a strict character set. Anything else is ignored.
-sub _theme_colour {
-  my ( $self, $phase ) = @_;
-  my $value = $self->theme->{$phase};
+# A colour is used only when it is plain colour syntax: #hex, a colour name,
+# or rgb()/hsl() over a strict character set. Anything else is ignored.
+sub _colour {
+  my ( $self, $value ) = @_;
   return if !defined $value || ref $value;
   return $value if $value =~ /\A#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\z/;
   return $value if $value =~ /\A[a-zA-Z]{1,32}\z/;
   return $value if $value =~ m{\A(?:rgb|hsl)a?\([0-9a-zA-Z%., /-]{1,64}\)\z}i;
   return;
+}
+
+# The light and the dark colour of a theme key (a phase or a surface): what
+# the theme gives, one colour for both or one per mode, else the default.
+sub _theme_colours {
+  my ( $self, $key, $light, $dark ) = @_;
+  my $value = $self->theme->{$key};
+  my ( $l, $d ) = map { scalar $self->_colour($_) }
+    ref $value eq 'HASH' ? @{$value}{qw( light dark )} : ( $value, $value );
+  return ( defined $l ? $l : $light, defined $d ? $d : $dark );
+}
+
+# The phases that blink, in the order of the legend: only known phases reach
+# the style, whatever order and however often they were named.
+sub _blink_phases {
+  my ( $self ) = @_;
+  my %blink = map { $_ => 1 } @{ $self->blink };
+  return grep { $blink{$_} } $self->phases;
+}
+
+# The period as plain decimals; what does not print as such (inf, a number
+# beyond %f) gives the default.
+sub _blink_period {
+  my ( $self ) = @_;
+  my $seconds = $self->_n( $self->blink_seconds );
+  return 1.2 unless $seconds =~ /\A[0-9]{1,9}(?:\.[0-9]{1,2})?\z/;
+  return $seconds < 0.01 ? 0.01 : $seconds;
+}
+
+# The pulse: fill and outline of the hexagon swell and settle, from and back
+# to what the cell has anyway, so nothing moves and the texts stay readable.
+# The phase line takes the text colour, to keep its contrast on the fuller
+# fill. Without motion the outline is as thick as at the peak.
+sub _blink_css {
+  my ( $self ) = @_;
+  my @phases = $self->_blink_phases;
+  return unless @phases;
+  my $s     = '.comb-svg';
+  my $hex   = join( ',', map { $s.' .comb.phase-'.$_.' .hex' } @phases );
+  my $width = 'stroke-width:'.$self->_n( $self->size * 0.07 );
+  return (
+    '@keyframes comb-blink{50%{fill-opacity:.4;'.$width.'}}',
+    $hex.'{animation:comb-blink '.$self->_blink_period.'s ease-in-out infinite}',
+    join( ',', map { $s.' .comb.phase-'.$_.' .phase' } @phases ).'{fill:var(--comb-fg)}',
+    '@media (prefers-reduced-motion:reduce){'.$hex.'{animation:none;'.$width.'}}'
+  );
 }
 
 sub _var { '--comb-'.lc $_[1] }
@@ -362,14 +453,10 @@ sub _style {
   my $r       = $self->size;
   my $colours = $self->_default_colours;
   my ( @light, @dark );
-  for my $base ( $self->_base_colours ) {
-    push @light, $self->_var( $base->[0] ).':'.$base->[1];
-    push @dark,  $self->_var( $base->[0] ).':'.$base->[2];
-  }
-  for my $phase ( $self->phases ) {
-    my $theme = $self->_theme_colour($phase);
-    push @light, $self->_var($phase).':'.( defined $theme ? $theme : $colours->{$phase}[0] );
-    push @dark,  $self->_var($phase).':'.( defined $theme ? $theme : $colours->{$phase}[1] );
+  for my $colour ( $self->_base_colours, map { [ $_, @{ $colours->{$_} } ] } $self->phases ) {
+    my ( $light, $dark ) = $self->_theme_colours(@$colour);
+    push @light, $self->_var( $colour->[0] ).':'.$light;
+    push @dark,  $self->_var( $colour->[0] ).':'.$dark;
   }
   push @light, '--comb-tint:.13', '--comb-tint-muted:.06';
   push @dark,  '--comb-tint:.2',  '--comb-tint-muted:.09';
@@ -405,7 +492,8 @@ sub _style {
     $s.' a{cursor:pointer;text-decoration:none}',
     $s.' .legend text{font-size:'.$self->_n( $self->_legend_font ).'px;fill:var(--comb-muted)}',
     $s.' .legend .hex{stroke-width:'.$self->_n( $r * 0.02 ).'}',
-    $s.' .legend .count{font-weight:600;fill:var(--comb-fg)}'
+    $s.' .legend .count{font-weight:600;fill:var(--comb-fg)}',
+    $self->_blink_css
   );
   return $self->_el( 'style', [], $self->_text( join( "\n", @css ) ) );
 }
@@ -873,6 +961,12 @@ What the document contains, so a page that embeds it can style or script
 against it. Everything is plain SVG; a page can query it with the DOM when the
 SVG is inlined.
 
+Where the cells sit depends on L</layout>. With C<depth> a cell is in the row
+of its dependency depth, so what has to be up first is above. With C<packed>
+the cells are sorted by C<namespace/name> and fill one compact honeycomb
+(one per group) whatever they depend on; the dependency edges are then left
+out unless L</edges> is true. The elements below are the same in both.
+
 =over
 
 =item * The root is C<< <svg class="comb-svg" role="img"> >> with C<xmlns>, a
@@ -907,14 +1001,72 @@ L</group_label>.
 phase that occurs, with C<data-phase> and C<data-count>.
 
 =item * One C<< <style> >> element. Colours are CSS custom properties on
-C<.comb-svg>: C<--comb-bg>, C<--comb-border>, C<--comb-fg>, C<--comb-muted>,
-C<--comb-edge>, one per phase (C<--comb-running>, C<--comb-pending>,
-C<--comb-blocked>, C<--comb-needsconfig>, C<--comb-disabled>,
-C<--comb-error>, C<--comb-unknown>) and the fill opacities C<--comb-tint> and
-C<--comb-tint-muted>. A C<@media (prefers-color-scheme: dark)> block gives
-the dark values. The font is the system sans stack.
+C<.comb-svg>, see L</Styling from outside>. A
+C<@media (prefers-color-scheme: dark)> block gives the dark values. The font
+is the system sans stack.
+
+=item * With L</blink>, the same C<< <style> >> holds C<@keyframes comb-blink>,
+an C<animation> named C<comb-blink> on C<.comb.phase-E<lt>PhaseE<gt> .hex> for
+each blinking phase, and a C<@media (prefers-reduced-motion: reduce)> block
+that turns the animation off and thickens the outline. Without L</blink> none
+of this is in the document.
 
 =back
+
+=head2 Styling from outside
+
+When the SVG is inlined into a page, the CSS of that page can restyle it. The
+custom property names, the class names and the animation name are public
+interface; the rest of the markup is not promised to stay as it is.
+
+Custom properties, set on C<.comb-svg> (light values), and again inside
+C<@media (prefers-color-scheme: dark)> (dark values):
+
+=over
+
+=item * C<--comb-bg>, C<--comb-fg>, C<--comb-muted>, C<--comb-border>,
+C<--comb-edge>: the panel, the text, secondary text (group names, phase line,
+legend), the outline of the panel and the group rules, and the dependency
+edges
+
+=item * C<--comb-running>, C<--comb-pending>, C<--comb-blocked>,
+C<--comb-needsconfig>, C<--comb-disabled>, C<--comb-error>, C<--comb-unknown>:
+the colour of each phase (the name is C<--comb-> and the lower-case phase);
+it is the outline of the hexagon and, at low opacity, its fill
+
+=item * C<--comb-tint> and C<--comb-tint-muted>: the fill opacity of a
+hexagon and of a Disabled one
+
+=back
+
+Classes: C<.comb> per cell with C<.phase-E<lt>PhaseE<gt>>, C<.borrowed> and
+C<.disabled> (the C<.phase-E<lt>PhaseE<gt>> class is also on the entries of
+the legend); inside it C<.hex>, C<.name>, C<.phase> and C<.upstream>. Around
+them C<.panel>, C<.heading>, C<.group>, C<.group-name> and C<.group-rule>;
+C<.deps> with C<.dep>, C<.arrow> and C<.dep-start>; C<.legend> with
+C<.legend-item> and C<.count>. The animation is named C<comb-blink>.
+
+The built-in custom properties sit on C<.comb-svg> itself, and the
+C<< <style> >> is part of the document, so whether a page rule with the same
+selector wins depends on which comes later. Use a more specific selector, such
+as C<svg.comb-svg>, to win regardless. The dark block is a rule of its own: a
+colour a page sets that way holds in dark mode too, unless the page sets the
+dark one in its own media query.
+
+  /* in the CSS of the embedding page */
+  svg.comb-svg {
+    --comb-error: #ff0033;
+    --comb-bg: #fafafa;
+  }
+  @media (prefers-color-scheme: dark) {
+    svg.comb-svg { --comb-error: #ff6680; --comb-bg: #101010 }
+  }
+  /* dim the Combs that are fine */
+  svg.comb-svg .comb.phase-Running { opacity: .6 }
+  /* a different pulse: override animation on the hexagon of a blinking phase */
+  svg.comb-svg .comb.phase-Error .hex { animation-duration: .6s }
+
+Setting L</theme> instead needs no page CSS: it writes the same properties.
 
 The picture is self-contained: no script, no web font, no stylesheet link, no
 image, no reference to anything outside the document (the arrowhead is a
