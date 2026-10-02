@@ -1,0 +1,28 @@
+---
+claimed_at: 2026-10-02T04:38:22Z
+claimed_by: monitor-layout-theme
+class: standard
+completed: 2026-10-02T04:38:21Z
+created: 2026-10-02T04:19:46Z
+id: 8
+priority: high
+started: 2026-10-02T04:28:35Z
+status: done
+tags:
+- lib
+- svg
+title: Theme for light and dark, surface colours, blink
+updated: 2026-10-02T04:38:22Z
+---
+
+SPEC §6 'Theme', 'Blink', 'Styling from outside', §7. theme values: one colour (both modes, as today) or { light => ..., dark => ... }; new keys bg, fg, muted, border, edge besides the phases; the existing colour-syntax check applies to every value, a bad one falls back to the default. blink => [phases] adds a CSS keyframe animation (no script) for g.comb.phase-<phase>; blink_seconds (default 1.2, positive number); under prefers-reduced-motion: reduce no animation, a thicker outline instead. An unknown phase name in blink is ignored. Without blink the output must not contain any animation CSS, and output without the new options stays byte-identical to before. CLI: --blink Error,Blocked, --blink-seconds, --color Key=Colour (repeatable; Key=light,dark sets both modes). POD documents the custom property names (--comb-*) and the classes as public interface. Tests: light/dark values land in the right block; surface keys; rejected colour; blink CSS present only for the named phases; reduced-motion block; determinism. Use blink for Error in examples/monitor.svg if the packed-layout card is done. Depends on the packed-layout card only for the demo.
+
+2026-10-02 04:33 Decisions on SPEC open points. 1) theme keys are case-sensitive and exact: phases as in phases() (Error), surfaces lowercase (bg fg muted border edge); same rule as before, no second spelling to document. A light/dark hash is checked per mode; a missing or bad mode keeps the default of that mode; other hash keys are ignored. 2) blink phases: exact names from phases(), so all seven incl. Disabled and Unknown may blink (callers choice, no reason to forbid); anything else is dropped, so only names from the fixed list reach the style. Written in legend order, deduplicated: bytes independent of input order. 3) Pulse: keyframes comb-blink with only a 50 percent frame (fill-opacity .4, stroke-width size*0.07) on polygon.hex. Start and end are the cells own values, so borrowed and disabled keep their look, nothing moves, the group never fades. blink_seconds is the animation-duration (full period there and back), ease-in-out, infinite. 4) Thicker outline under reduced motion: the peak stroke width size*0.07 (normal size*0.03) with animation:none. 5) Blinking cells get their phase line in --comb-fg instead of --comb-muted: muted text on the .4 fill is about 3:1 contrast, fg about 8:1 in both modes. Static, also under reduced motion. 6) blink_seconds is written with two decimals, at least 0.01; what does not print as a plain decimal (inf, 1e30) gives 1.2. isa PositiveNum like size. 7) blink_seconds without blink changes nothing in the output.
+
+2026-10-02 04:33 CLI: --color KEY=COLOUR repeatable, last per key wins. KEY=LIGHT,DARK splits at a comma outside parentheses, so rgb(1,2,3),rgb(4,5,6) is two colours; an empty side (Error=,COLOUR) leaves that mode at its default. Structure errors (no equals sign, no key, no colour, three colours) and a bad --blink-seconds exit 1; unknown key, bad colour syntax and unknown --blink phase go to the module and are ignored there. --blink is comma-separated and repeatable. Replaced test claim in t/30-svg.t: a non-phase key does not touch the base colours (bg) no longer holds by design; it now asserts that unknown and wrong-case keys are ignored. demo.json has one Error Comb; examples/monitor.svg regenerated with blink Error (four added style lines), examples/demo.svg byte-identical. Open: POD not built with dzil here, pod-writer to polish theme, blink, blink_seconds and the three new opts.
+
+2026-10-02 04:33 Done: theme values per mode and surface keys, blink and blink_seconds, CLI --color, --blink, --blink-seconds, tests, POD skeleton, monitor.svg regenerated with blink Error. Verified: prove -lr t/ PASS (7 files, 450 tests), perl -Ilib examples/demo.pl leaves demo.svg without diff. Tree commit-ready, not committed.
+
+Coordinator review: diff read, prove -lr t/ 450 tests PASS, demo.svg unchanged. monitor picture checked in headless Chromium, light and dark, 1280x720 and 720x1280, 15 and 48 Combs, at rest and at the peak of the pulse: canvas fills the screen (1.68 for 16:9 with 15 Combs, 1.86 with 48; 0.64 / 0.57 upright), Error stands out at the peak and stays readable, pulse is soft. No rework asked. Worker's extra rule (phase text of a blinking cell in --comb-fg) kept: it keeps 'Error' readable on the fuller fill. Long names cut at ~11 characters filed as k9 (needs a SPEC decision).
+
+Committed as 34490d9
