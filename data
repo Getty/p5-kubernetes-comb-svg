@@ -1,0 +1,20 @@
+---
+class: standard
+completed: 2026-10-02T05:47:33Z
+created: 2026-10-02T05:07:48Z
+id: 11
+priority: medium
+started: 2026-10-02T05:40:19Z
+status: done
+tags:
+- lib
+- svg
+title: Show the reason of a non-Running cell in the picture
+updated: 2026-10-02T05:47:35Z
+---
+
+Today the condition reason/message of a cell that is not Running is only in the tooltip, which a wall screen does not have. Wanted: a short visible line (the condition reason, cut to fit) under the phase text, like the 'from <context>' line of a borrowed cell. Needs a SPEC §6 decision. Output for Running cells must stay byte-identical. Found by the first consumer (citiai-core, 2026-10-02).
+
+2026-10-02 05:46 Done, not committed: Cell->reason (Ready condition, else first not True; reason unless empty/NotChecked/repeats phase or raw_phase, then first non-blank message line of the same condition, else undef; Running always undef). SVG: text.reason between phase and upstream via _cell_lines, font = upstream font (0.15*size, not italic, muted), cut by _fit to _line_width (hexagon width at that height minus 2*_name_pad) = 16 chars at any size. Cells with a reason line and more than three lines use tight advances (name->phase 0.24, small lines 0.20, block centred: first baseline 0.06*size - span/2); a 3-line cell with a reason uses the unchanged 0.30/0.25 and sits exactly like a borrowed cell. Cells without a reason line: byte-identical (checked old vs new over all t/data/svg fixtures + demo.json at 3 sizes x 2 layouts: only hostile, tooltip, demo differ, each only in the .reason rule and the non-Running cells with conditions). .reason CSS rule only when a cell has the line. examples/demo.svg + monitor.svg regenerated: +1 style rule, 4 cells each (catalog, mailer, media, cart). Tests: t/10-cell.t subtest status.conditions[].reason + fixture t/data/cell/reasons.json; t/30-svg.t three reason subtests. prove -lr t/: 7 files, 470 tests, pass. Also found: blink sets .phase to --comb-fg for contrast on the fuller fill, the reason (like the upstream line) stays muted there - maintainer call whether it should follow. README not touched (release-manager).
+
+2026-10-02 05:47 Committed as 5e9b8b5
