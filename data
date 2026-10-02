@@ -1,0 +1,21 @@
+---
+class: standard
+completed: 2026-10-02T06:03:19Z
+created: 2026-10-02T05:53:58Z
+id: 14
+priority: medium
+started: 2026-10-02T06:03:19Z
+status: done
+tags:
+- lib
+- svg
+title: 'Reason line: wrap onto two lines before cutting; Stopped easier to tell from
+  Running in light mode'
+updated: 2026-10-02T06:03:22Z
+---
+
+From the visual check of k9-k12 with the real CitiAI names (packed, 16:9, light and dark). (1) The reason line holds 16 characters, so the commonest real reasons are cut: MissingPrerequisites reads "MissingPrerequi…". Break the reason onto two lines (CamelCase boundary or space) before cutting. (2) In light mode the Stopped teal (#1b7c83) is too close to the Running green (#1a7f37) from a distance; take a clearer cyan. (3) In a cell with tight lines the phase sits as close under the name as a second name line.
+
+2026-10-02 06:01 Done in lib/Kubernetes/Comb/SVG.pm (_cell_lines split into _cell_baselines, _reason_width/_reason_chars, _reason_break; _default_colours Stopped light #0891b2), t/30-svg.t, examples regenerated. Reason: one line if it fits (bytes as before); else broken at whitespace run or lower/digit->upper, shortest longer line, else last break whose first line fits with line two cut; no break -> one cut line. Second reason line 0.17r below the first, one text.reason with two tspan. Room: tight block advances may sum to 0.89r (block within +-0.55r); 1 name+phase+2 reason, 2 names+phase+2 reason and 1 name+phase+2 reason+upstream fit; the six-line case (2 names+phase+2 reason+upstream) does not, reason stays one cut line there (POD says so). Chars per reason line at size 56: 16/16, under a two-line name 16/14, under a small-font two-line name 16/15. Phase air in tight cells: 0.28r, except 2 name-font lines + reason + upstream where the band leaves 0.25r (name step 0.24r). Verified: prove -lr t/ green (7 files, 472 tests); old vs new render of all fixtures and demo.json, depth and packed: only the 6 cell lines with a wrapping reason differ (demo media, cart; hostile fixture), every cell without a reason line byte-identical. Also found: demo catalog and mailer did not change (their reasons fit one line in a three-line cell). _fit can leave a space before the ellipsis ('deploy failed: …'), as before this card.
+
+2026-10-02 06:03 Committed as bb7ef1f
