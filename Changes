@@ -53,3 +53,10 @@ Revision history for Kubernetes-Comb-SVG
    Kubernetes::Comb::SVG::Cell has it as reason; the picture as text.reason,
    with a .reason style rule only when a cell has the line. Running cells and
    cells without a reason are drawn as before.
+ - A cell is drawn as borrowed (dashed outline, upstream line) only when the
+   Comb really borrows: status.upstream recorded, not unreachable, and phase
+   Running or Pending. A NeedsConfig, Blocked, Disabled or Error Comb that
+   merely records an upstream is not marked. The tooltip names the upstream
+   class and context of every Comb that records one and says "(not
+   borrowing)" when the cell is not borrowed. Cell has upstream_recorded,
+   upstream_class and the class method borrowing_phases.

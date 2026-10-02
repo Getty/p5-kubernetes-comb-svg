@@ -157,8 +157,34 @@ has borrowed => ( is => 'ro', isa => Bool, default => 0 );
 
 =attr borrowed
 
+Default false. True when the Comb really takes its service from an upstream
+layer instead of running it: an upstream is recorded (L</upstream_recorded>),
+its C<reachable> is not false, and L</phase> is one of L</borrowing_phases>,
+C<Running> or C<Pending> -- the two phases C<Kubernetes::Comb> ends its
+upstream path in, with the bridge in place. C<reachable> is read like
+C<spec.enabled> (see L</enabled>): unset counts as reachable, only a false
+value says otherwise. In any other phase a recorded upstream is what an
+earlier step left behind, or one the Comb did not get to, and the cell is not
+borrowed. This is what the drawing marks.
+
+=cut
+
+has upstream_recorded => ( is => 'ro', isa => Bool, default => 0 );
+
+=attr upstream_recorded
+
 Default false. True when C<status.upstream> is present, that is a non-empty
-hash: the Comb takes its service from an upstream layer instead of running it.
+hash -- whether or not the cell is L</borrowed>. L</upstream_class>,
+L</upstream_context> and L</upstream_via> are kept for every such cell, so the
+tooltip can name the upstream of a cell that does not borrow from it.
+
+=cut
+
+has upstream_class => ( is => 'ro', isa => Maybe[Str] );
+
+=attr upstream_class
+
+C<status.upstream.class>, or C<undef>.
 
 =cut
 
@@ -230,6 +256,17 @@ is C<Unknown>. Callable on the class.
 
 =cut
 
+sub borrowing_phases { qw( Running Pending ) }
+
+=method borrowing_phases
+
+  my @phases = Kubernetes::Comb::SVG::Cell->borrowing_phases;
+
+Returns the phases in which a Comb with a recorded upstream is L</borrowed>:
+C<Running> and C<Pending>. Callable on the class.
+
+=cut
+
 sub is_known_phase {
   my ( $self, $phase ) = @_;
   return 0 unless defined $phase;
@@ -257,34 +294,40 @@ sub from_cr {
   croak __PACKAGE__.'->from_cr: Comb without metadata.name'
     unless defined $name;
 
-  my $enabled   = $self->_enabled( $spec->{enabled} );
+  my $enabled   = $self->_unless_false( $spec->{enabled} );
   my $raw_phase = $self->_str( $status->{phase} );
   my $phase     = !$enabled                         ? 'Disabled'
                 : $self->is_known_phase($raw_phase) ? $raw_phase
                 :                                     'Unknown';
 
   my $upstream = $self->_hash( $status->{upstream} );
+  my $recorded = %$upstream ? 1 : 0;
+  my $borrowed = $recorded
+    && $self->_unless_false( $upstream->{reachable} )
+    && ( grep { $_ eq $phase } $self->borrowing_phases ) ? 1 : 0;
   my $label    = $self->_str( $opt{group_label} );
 
   return $self->new(
-    name             => $name,
-    namespace        => $self->_str( $meta->{namespace} ),
-    class            => $self->_str( $spec->{class} ),
-    phase            => $phase,
-    raw_phase        => $raw_phase,
-    enabled          => $enabled,
-    depends_on       => [ $self->_strings( $spec->{dependsOn} ) ],
-    endpoints        => [ $self->_endpoints( $status->{endpoints} ) ],
-    borrowed         => ( %$upstream ? 1 : 0 ),
-    upstream_context => $self->_str( $upstream->{context} ),
-    upstream_via     => [ $self->_strings( $upstream->{via} ) ],
-    group            => defined $label
+    name              => $name,
+    namespace         => $self->_str( $meta->{namespace} ),
+    class             => $self->_str( $spec->{class} ),
+    phase             => $phase,
+    raw_phase         => $raw_phase,
+    enabled           => $enabled,
+    depends_on        => [ $self->_strings( $spec->{dependsOn} ) ],
+    endpoints         => [ $self->_endpoints( $status->{endpoints} ) ],
+    borrowed          => $borrowed,
+    upstream_recorded => $recorded,
+    upstream_class    => $self->_str( $upstream->{class} ),
+    upstream_context  => $self->_str( $upstream->{context} ),
+    upstream_via      => [ $self->_strings( $upstream->{via} ) ],
+    group             => defined $label
       ? $self->_str( $self->_hash( $meta->{labels} )->{$label} )
       : undef,
-    message          => $phase eq 'Running'
+    message           => $phase eq 'Running'
       ? undef
       : $self->_message( $status->{conditions} ),
-    reason           => $phase eq 'Running'
+    reason            => $phase eq 'Running'
       ? undef
       : $self->_reason( $status->{conditions}, $phase, $raw_phase )
   );
@@ -422,8 +465,9 @@ sub _strings {
     ref $value eq 'ARRAY' ? @$value : ( $value );
 }
 
-# spec.enabled is tri-state: unset is automatic, only a false value switches off.
-sub _enabled {
+# A tri-state flag (spec.enabled, status.upstream.reachable): unset is true,
+# only a false value -- false, 0, '', the string 'false' -- says no.
+sub _unless_false {
   my ( $self, $value ) = @_;
   return 1 unless defined $value;
   return 0 unless $value;

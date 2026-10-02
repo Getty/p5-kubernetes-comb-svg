@@ -50,7 +50,7 @@ namespace: platform
 class: MyApp::Comb::Postgres
 phase: Running
 endpoint: postgres 5432
-upstream: shared
+upstream: Kubernetes::Comb::Upstream::K8s, context shared
 via: shared</title><polygon class="hex" points="178.69,67.2 227.19,95.2 227.19,151.2 178.69,179.2 130.19,151.2 130.19,95.2"/><text class="name" x="178.69" y="113.68">db</text><text class="phase" x="178.69" y="130.48">Running</text><text class="upstream" x="178.69" y="144.48">from shared</text></g>
 <g class="comb phase-Running" data-name="nats" data-id="platform/nats" data-phase="Running"><title>platform/nats
 namespace: platform

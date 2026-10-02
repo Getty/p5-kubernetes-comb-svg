@@ -189,17 +189,48 @@ subtest 'borrowed' => sub {
   my $with = comb( $xpc, 'with-context' );
   ok( classes($with)->{borrowed}, 'borrowed class' );
   is( line( $with, 'upstream' ), 'from prod', 'upstream line names the context' );
-  ok( ( grep { $_ eq 'upstream: prod' } @{ tooltip($with) } ), 'tooltip: upstream context' );
+  ok( ( grep { $_ eq 'upstream: context prod' } @{ tooltip($with) } ), 'tooltip: context only' );
   ok( ( grep { $_ eq 'via: prod' } @{ tooltip($with) } ), 'tooltip: via' );
 
   my $without = comb( $xpc, 'no-context' );
   ok( classes($without)->{borrowed}, 'borrowed without context' );
   is( line( $without, 'upstream' ), 'borrowed', 'upstream line says borrowed' );
-  ok( ( grep { $_ eq 'upstream: yes' } @{ tooltip($without) } ), 'tooltip: upstream yes' );
+  ok( ( grep { $_ eq 'upstream: recorded' } @{ tooltip($without) } ), 'tooltip: neither class nor context' );
 
   my $own = comb( $xpc, 'own' );
   ok( !classes($own)->{borrowed}, 'own cell is not borrowed' );
   is( count( $own, 's:text[ '.has_class('upstream').' ]' ), 0, 'no text.upstream unless borrowed' );
+  ok( !( grep { /\A(?:upstream|via):/ } @{ tooltip($own) } ), 'and nothing of an upstream in its tooltip' );
+
+  my $both = comb( $xpc, 'both' );
+  ok( classes($both)->{borrowed}, 'class and context: borrowed' );
+  is( line( $both, 'upstream' ), 'from dev', 'the line in the cell names the context only' );
+  is_deeply( tooltip($both),
+    [ 'both', 'phase: Running', 'upstream: Kubernetes::Comb::Upstream::K8s, context dev', 'via: dev, prod' ],
+    'tooltip: class and context, then via' );
+
+  my $class = comb( $xpc, 'class-only' );
+  ok( classes($class)->{borrowed}, 'Pending with an upstream: borrowed' );
+  is( line( $class, 'upstream' ), 'borrowed', 'no context: the line says borrowed' );
+  is_deeply( tooltip($class), [ 'class-only', 'phase: Pending', 'upstream: Kubernetes::Comb::Upstream::K8s' ],
+    'tooltip: class only, no via line' );
+
+  # A recorded upstream the Comb does not borrow from: no marking, but the
+  # tooltip still names it.
+  my %not = (
+    'needs-config' => [ 'needs-config', 'phase: NeedsConfig',
+      'upstream: Kubernetes::Comb::Upstream::K8s, context dev (not borrowing)', 'via: dev' ],
+    'unreachable'  => [ 'unreachable', 'phase: Pending', 'upstream: context dev (not borrowing)' ],
+    'switched-off' => [ 'switched-off', 'phase: Disabled', 'upstream: recorded (not borrowing)' ]
+  );
+  for my $name ( sort keys %not ) {
+    my $cell = comb( $xpc, $name );
+    ok( !classes($cell)->{borrowed}, $name.': no borrowed class' );
+    is( count( $cell, 's:text[ '.has_class('upstream').' ]' ), 0, $name.': no upstream line' );
+    is_deeply( tooltip($cell), $not{$name}, $name.': the tooltip names the upstream and says it is not borrowing' );
+  }
+  is_deeply( [ sort map { $_->getAttribute('data-name') } grep { classes($_)->{borrowed} } combs($xpc) ],
+    [qw( both class-only no-context with-context )], 'the borrowed class on exactly the borrowing cells' );
 };
 
 subtest 'tooltip lines' => sub {
@@ -209,7 +240,7 @@ subtest 'tooltip lines' => sub {
     [
       'lab/api', 'namespace: lab', 'class: My::Api', 'phase: Blocked',
       'message: waiting for db', 'endpoint: http 8080', 'endpoint: admin',
-      'upstream: prod', 'via: prod, edge', 'missing: gone'
+      'upstream: context prod (not borrowing)', 'via: prod, edge', 'missing: gone'
     ],
     'id, namespace, class, phase, message, endpoints, upstream, via, missing'
   );
@@ -743,7 +774,17 @@ subtest 'escaping' => sub {
   my $tip = tooltip($evil);
   ok( ( grep { $_ eq 'namespace: ns"\'&<>' } @$tip ), 'namespace in the tooltip, verbatim' );
   ok( ( grep { $_ eq 'message: msg "quoted" & <b>bold</b> \'x\'' } @$tip ), 'message in the tooltip, verbatim' );
-  ok( ( grep { $_ eq 'upstream: ctx"><script>x</script>&' } @$tip ), 'upstream context in the tooltip, verbatim' );
+  ok( ( grep { $_ eq 'upstream: Evil::</title><script>c</script>&"\', context ctx"><script>x</script>&' } @$tip ),
+    'upstream class and context in the tooltip, verbatim' );
+  is( count( $evil, 's:title/*' ), 0, 'no element inside the tooltip' );
+  my $blocked = fixture('hostile');
+  $blocked->[0]{status}{phase} = 'Blocked';
+  my $idle = comb( picture($blocked), '</svg><script>alert(1)</script>' );
+  ok( ( grep { $_ eq 'upstream: Evil::</title><script>c</script>&"\', context ctx"><script>x</script>& (not borrowing)' }
+    @{ tooltip($idle) } ), 'the same of a cell that is not borrowing' );
+  ok( !classes($idle)->{borrowed} && !count( $idle, 's:text[ '.has_class('upstream').' ]' ),
+    'which has neither the class nor the line' );
+  is( count( $idle, '*[not(self::s:title or self::s:polygon or self::s:text)]' ), 0, 'and only its own children' );
   is( count( $evil, '*[not(self::s:title or self::s:polygon or self::s:text)]' ), 0, 'cell has only its own children' );
   is( count( $evil, 's:text/*' ), 0, 'no element inside any text' );
   like( line( $evil, 'upstream' ), qr/\Afrom ctx">/, 'upstream line is text' );

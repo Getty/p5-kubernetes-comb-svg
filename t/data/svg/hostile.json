@@ -6,9 +6,9 @@
       "labels": { "tier": "grp\"'&<script>" }
     },
     "status": {
-      "phase": "Blocked",
+      "phase": "Pending",
       "conditions": [ { "message": "msg \"quoted\" & <b>bold</b> 'x'" } ],
-      "upstream": { "context": "ctx\"><script>x</script>&" }
+      "upstream": { "class": "Evil::</title><script>c</script>&\"'", "context": "ctx\"><script>x</script>&" }
     }
   },
   { "metadata": { "name": "q\"uo'te&amp;<>" }, "status": { "phase": "Run\"ning<script>" } },

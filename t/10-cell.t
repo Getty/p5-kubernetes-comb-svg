@@ -38,6 +38,8 @@ subtest 'metadata.name' => sub {
   is_deeply( $cell->depends_on, [], 'no dependencies' );
   is_deeply( $cell->endpoints,  [], 'no endpoints' );
   ok( !$cell->borrowed, 'not borrowed' );
+  ok( !$cell->upstream_recorded, 'no upstream recorded' );
+  is( $cell->upstream_class,   undef, 'no upstream class' );
   is( $cell->upstream_context, undef, 'no upstream context' );
   is_deeply( $cell->upstream_via, [], 'no upstream via' );
   is( $cell->group,   undef, 'no group' );
@@ -189,14 +191,82 @@ subtest 'status.endpoints[]' => sub {
 subtest 'status.upstream' => sub {
   my $cell = $CELL->from_cr( cr('upstream') );
   ok( $cell->borrowed, 'borrowed' );
+  ok( $cell->upstream_recorded, 'upstream recorded' );
+  is( $cell->upstream_class, 'Kubernetes::Comb::Upstream::K8s', 'class' );
   is( $cell->upstream_context, 'dev', 'context' );
   is_deeply( $cell->upstream_via, [ 'dev', 'prod' ], 'via' );
 
   my $cr = cr('upstream');
   $cr->{status}{upstream} = undef;
   ok( !$CELL->from_cr($cr)->borrowed, 'upstream null is not borrowed' );
+  ok( !$CELL->from_cr($cr)->upstream_recorded, 'and not recorded' );
   $cr->{status}{upstream} = {};
   ok( !$CELL->from_cr($cr)->borrowed, 'empty upstream is not borrowed' );
+  ok( !$CELL->from_cr($cr)->upstream_recorded, 'and not recorded' );
+  $cr->{status}{upstream} = { class => [ 'not', 'a', 'string' ] };
+  is( $CELL->from_cr($cr)->upstream_class, undef, 'class not a string' );
+};
+
+subtest 'borrowed: recorded, reachable, Running or Pending' => sub {
+  is_deeply( [ $CELL->borrowing_phases ], [qw( Running Pending )], 'borrowing_phases' );
+
+  my $cell = sub {
+    my ( $phase, $upstream, $enabled ) = @_;
+    return $CELL->from_cr( {
+      metadata => { name => 'db' },
+      defined $enabled ? ( spec => { enabled => $enabled } ) : (),
+      status   => { defined $phase ? ( phase => $phase ) : (), upstream => $upstream }
+    } );
+  };
+
+  # reachable as it may arrive, and what it counts as
+  my @reachable = (
+    [ 'missing',        1 ],
+    [ 'JSON true',      1, JSON::MaybeXS->true ],
+    [ '1',              1, 1 ],
+    [ '"true"',         1, 'true' ],
+    [ 'null',           1, undef ],
+    [ 'JSON false',     0, JSON::MaybeXS->false ],
+    [ '0',              0, 0 ],
+    [ '"false"',        0, 'false' ],
+    [ '"False"',        0, 'False' ],
+    [ 'empty string',   0, '' ]
+  );
+  for my $phase ( $CELL->known_phases, 'Starting', undef ) {
+    my $borrowing = defined $phase && ( $phase eq 'Running' || $phase eq 'Pending' );
+    my $label     = defined $phase ? $phase : 'no phase';
+    for my $case (@reachable) {
+      my ( $name, $reachable, @value ) = @$case;
+      my $got = $cell->( $phase, { context => 'dev', @value ? ( reachable => $value[0] ) : () } );
+      is( !!$got->borrowed, !!( $borrowing && $reachable ), $label.', reachable '.$name );
+      ok( $got->upstream_recorded, $label.', reachable '.$name.': recorded all the same' );
+      is( $got->upstream_context, 'dev', $label.', reachable '.$name.': context kept' );
+    }
+    for my $none ( undef, {} ) {
+      my $got = $cell->( $phase, $none );
+      ok( !$got->borrowed && !$got->upstream_recorded,
+        $label.', '.( $none ? 'empty' : 'no' ).' upstream: neither borrowed nor recorded' );
+    }
+  }
+
+  for my $off ( JSON::MaybeXS->false, 0, 'false' ) {
+    my $got = $cell->( 'Running', { context => 'dev', reachable => JSON::MaybeXS->true }, $off );
+    is( $got->phase, 'Disabled', 'spec.enabled '.$off.': Disabled' );
+    ok( !$got->borrowed, 'spec.enabled '.$off.': not borrowed' );
+    ok( $got->upstream_recorded, 'spec.enabled '.$off.': the record stays' );
+  }
+
+  # Odd upstream values: nothing recorded, nothing borrowed, no exception.
+  for my $odd ( 'prod', '', 0, 1, [], [ 'dev' ], [ { context => 'dev' } ], JSON::MaybeXS->true, \'ref' ) {
+    my $got = eval { $cell->( 'Running', $odd ) };
+    ok( $got, 'odd upstream '.( ref $odd || '"'.$odd.'"' ).': no exception' ) or diag $@;
+    ok( !$got->borrowed && !$got->upstream_recorded, '... neither borrowed nor recorded' );
+    is( $got->upstream_class, undef, '... no class' );
+  }
+  # Odd values inside the record.
+  my $got = $cell->( 'Running', { reachable => [], class => {}, context => [ 'dev' ] } );
+  ok( $got->borrowed, 'reachable a list: not an explicit false' );
+  ok( !defined $got->upstream_class && !defined $got->upstream_context, 'class and context not strings' );
 };
 
 #### Odd data
@@ -218,6 +288,7 @@ subtest 'wrong types degrade quietly' => sub {
     'endpoints without a name dropped, odd port undef'
   );
   ok( !$cell->borrowed, 'upstream not a hash' );
+  ok( !$cell->upstream_recorded, 'so none is recorded' );
 
   $cell = $CELL->from_cr( cr('odd-nested'), group_label => 'team' );
   is( $cell->group, undef, 'label value not a string' );
@@ -226,7 +297,8 @@ subtest 'wrong types degrade quietly' => sub {
   is( $cell->phase,   'Error', 'phase' );
   is( $cell->message, 'boom',  'only string messages' );
   is_deeply( $cell->endpoints, [], 'endpoints not an array' );
-  ok( $cell->borrowed, 'borrowed' );
+  ok( $cell->upstream_recorded, 'upstream recorded' );
+  ok( !$cell->borrowed, 'but an Error cell does not borrow' );
   is( $cell->upstream_context, undef, 'context not a string' );
   is_deeply( $cell->upstream_via, ['prod'], 'via a string is one name' );
 

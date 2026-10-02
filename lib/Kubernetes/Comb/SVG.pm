@@ -897,8 +897,13 @@ sub _tooltip {
     if defined $cell->message && $cell->phase ne 'Running';
   push @lines, map { 'endpoint: '.$_->{name}.( defined $_->{port} ? ' '.$_->{port} : '' ) }
     @{ $cell->endpoints };
-  if ( $cell->borrowed ) {
-    push @lines, 'upstream: '.( defined $cell->upstream_context ? $cell->upstream_context : 'yes' );
+  if ( $cell->upstream_recorded ) {
+    my @upstream = (
+      defined $cell->upstream_class   ? $cell->upstream_class              : (),
+      defined $cell->upstream_context ? 'context '.$cell->upstream_context : ()
+    );
+    push @lines, 'upstream: '.( @upstream ? join( ', ', @upstream ) : 'recorded' )
+      .( $cell->borrowed ? '' : ' (not borrowing)' );
     push @lines, 'via: '.join( ', ', @{ $cell->upstream_via } ) if @{ $cell->upstream_via };
   }
   push @lines, 'missing: '.join( ', ', @{ $cell->missing } ) if @{ $cell->missing };
@@ -1097,12 +1102,19 @@ generated summary such as C<3 Combs: 2 Running, 1 Blocked>.
 
 =item * One C<< <g class="comb phase-Running"> >> per cell. The class is
 C<comb>, C<phase-E<lt>PhaseE<gt>> (see L</phases>), plus C<borrowed> when the
-Comb takes its service from an upstream layer (dashed outline, a line naming
-the upstream context) and C<disabled> for a Disabled one. Attributes:
+Comb really takes its service from an upstream layer (dashed outline, a line
+naming the upstream context; see
+L<borrowed|Kubernetes::Comb::SVG::Cell/borrowed>: an upstream is recorded, it
+is not unreachable, and the phase is Running or Pending) and C<disabled> for a
+Disabled one. Attributes:
 C<data-name> (C<metadata.name>), C<data-id> (C<namespace/name>, or the name
 alone), C<data-phase>. Inside: a C<< <title> >> tooltip (id, namespace, class,
 phase, the message when the phase is not Running, endpoints, upstream,
-missing dependencies), C<polygon.hex>, C<text.name>, C<text.phase>, for a
+missing dependencies; the upstream line is there for every Comb that records
+one, C<upstream: E<lt>classE<gt>, context E<lt>contextE<gt>>, either part
+alone when the other is absent, C<upstream: recorded> with neither, followed
+by C<(not borrowing)> when the cell is not borrowed, and a C<via:> line when
+the upstream names a chain), C<polygon.hex>, C<text.name>, C<text.phase>, for a
 Comb that is not Running and says why, C<text.reason> and, for a borrowed
 Comb, C<text.upstream>, in this order top to bottom. The reason line is what
 a wall screen shows in place of the tooltip: the
@@ -1206,7 +1218,7 @@ Setting L</theme> instead needs no page CSS: it writes the same properties.
 The picture is self-contained: no script, no web font, no stylesheet link, no
 image, no reference to anything outside the document (the arrowhead is a
 C<< <marker> >> inside it). Every value that comes from a custom resource --
-names, namespaces, messages, reasons, label values, upstream contexts, a L</link>
+names, namespaces, messages, reasons, label values, upstream classes and contexts, a L</link>
 result -- is escaped wherever it lands, in text, in C<< <title> >> and in
 attributes, and the five XML special characters become entities. Characters
 XML 1.0 cannot carry are dropped, and everything outside ASCII becomes a

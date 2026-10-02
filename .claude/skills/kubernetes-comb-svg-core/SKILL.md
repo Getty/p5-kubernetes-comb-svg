@@ -18,7 +18,7 @@ maintainer, never silently in code.
 | CR | the `Comb` custom resource: `metadata`, `spec` (`class`, `dependsOn`, `enabled`, `upstream`, `config`), `status` (`phase`, `conditions`, `endpoints`, `upstream`, `managedResources`) |
 | cell | one normalised Comb (`Kubernetes::Comb::SVG::Cell`) — the only thing layout and drawing see |
 | phase | `Running`, `Pending`, `Blocked`, `NeedsConfig`, `Disabled`, `Error`, `Stopped`, `NotDeployed`; anything else is `Unknown` |
-| borrowed | the Comb takes its service from an upstream layer — `status.upstream` is present |
+| borrowed | the Comb takes its service from an upstream layer — `status.upstream` recorded, not unreachable, and phase `Running` or `Pending` (SPEC §3) |
 | group | cells sharing the value of the configured `group_label`; no label key is built in |
 | depth | row of a cell: 0 without dependencies in the picture, else one below its deepest dependency |
 

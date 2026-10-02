@@ -54,7 +54,7 @@ Fields read, all optional except the name:
 | `status.conditions[].message` | tooltip, when the phase is not `Running` |
 | `status.conditions[].reason` | the visible reason line, when the phase is not `Running` (§6) |
 | `status.endpoints[]` | tooltip (`name port`) |
-| `status.upstream` | "borrowed" marking; `context` and `via` in the tooltip |
+| `status.upstream` | "borrowed" marking (see below); `class`, `context` and `via` in the tooltip |
 
 Phases known to `Kubernetes::Comb`: `Running`, `Pending`, `Blocked`,
 `NeedsConfig`, `Disabled`, `Error`, `Stopped`, `NotDeployed` — the eight its
@@ -62,6 +62,15 @@ Phases known to `Kubernetes::Comb`: `Running`, `Pending`, `Blocked`,
 `NotDeployed` (nothing rolled out yet) are states of rest, not faults. Any
 other string is drawn as `Unknown` with the original text in the tooltip —
 never an exception.
+
+**Borrowed.** A cell is borrowed when the Comb really takes its service from
+an upstream: `status.upstream` is recorded, its `reachable` is not `false`,
+and the phase is `Running` or `Pending`. Those are the two phases
+`Kubernetes::Comb` ends its upstream path in, with the bridge in place
+(`Pending` while the upstream itself is not `Running`). In any other phase a
+recorded `status.upstream` is only what an earlier step left behind, or an
+upstream the Comb did not get to — `NeedsConfig`, `Blocked`, `Disabled`,
+`Error` — and the cell is not marked. The record still shows in the tooltip.
 
 **Identity.** A cell is identified by `namespace/name` (by `name` alone when
 the CR has no namespace), so `kubectl get combs -A` may carry the same name in
@@ -144,8 +153,10 @@ compact honeycomb, so that anything not green stands out immediately.
   the phase (`Disabled`, `Stopped`) or says `NotChecked` tells nothing, and
   the first line of that condition's `message` stands in. Without either
   there is no line. A `Running` cell never has one.
-- **Borrowed** (a `status.upstream` is present): dashed outline and a small
-  line naming the upstream context.
+- **Borrowed** (the Comb really borrows, §3): dashed outline and a small
+  line naming the upstream context. The tooltip names the upstream of every
+  cell that records one — its class and context, and `via` — and says so when
+  the cell is not borrowing from it.
 - **Disabled**: muted fill and text.
 - **Edges**: one `<path class="dep">` per dependency, from the dependent cell
   to its dependency, with an arrowhead at the dependency. Edges are thin and half transparent
