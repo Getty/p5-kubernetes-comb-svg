@@ -1,0 +1,27 @@
+---
+claimed_at: 2026-10-02T05:53:22Z
+claimed_by: cards-9-12
+class: standard
+completed: 2026-10-02T05:53:22Z
+created: 2026-10-02T05:07:49Z
+id: 12
+priority: medium
+started: 2026-10-02T05:47:57Z
+status: done
+tags:
+- lib
+- cell
+title: 'Borrowed marking: only when the Comb really borrows; tooltip names class and
+  context'
+updated: 2026-10-02T05:53:22Z
+---
+
+Two findings from the first consumer (citiai-core, 2026-10-02): (1) a cell is marked borrowed as soon as status.upstream is recorded, even while the Comb is NeedsConfig and does not borrow yet - decide what 'borrowed' requires (reachable? phase?) and say it in SPEC §3; (2) the tooltip says 'upstream: yes' instead of the upstream class and context. Lower priority, same area: blink and theme address phases only, not groups ('only the group extern blinks'); and aspect ignores a long title and a wrapping legend.
+
+2026-10-02 05:50 Worker: Cell now splits upstream_recorded (status.upstream is a non-empty hash) from borrowed (recorded AND reachable not false AND phase Running/Pending, via new class method borrowing_phases); new upstream_class. _enabled renamed _unless_false and reused for reachable. SVG _tooltip names class and context for every recorded upstream, with (not borrowing) otherwise; marking follows borrowed unchanged. Red after the change, as expected: t/10-cell.t odd-nested (Error + upstream was borrowed), t/30-svg.t tooltip/hostile claims, t/50-demo.t stale SVGs. Tests next.
+
+2026-10-02 05:52 Done: Cell.borrowed = upstream recorded AND reachable not false AND phase Running/Pending; new attrs upstream_recorded, upstream_class, class method borrowing_phases. Tooltip names class and context for every recorded upstream, with (not borrowing) when the cell is not borrowed; dashed outline and from-line only when borrowed. Fixtures: svg/borrowed.json grew five cells, svg/hostile.json first Comb now Pending with a hostile upstream class. examples/demo.svg and monitor.svg regenerated: one tooltip line of platform/postgres changed, no cell lost its marking. Verified: prove -lr t/ PASS, 7 files, 471 tests. Tree commit-ready, not committed.
+
+2026-10-02 05:52 Correction to the handoff note: the demo cell whose tooltip line changed is platform/db (class MyApp::Comb::Postgres), not platform/postgres.
+
+2026-10-02 05:53 Committed as 60bfa89
