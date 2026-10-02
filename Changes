@@ -42,3 +42,7 @@ Revision history for Kubernetes-Comb-SVG
  - A cell name that does not fit on one line is broken into two after a
    hyphen, dot or underscore, in a smaller font when needed; only what fits
    neither way is cut with an ellipsis. Names that fit are drawn as before.
+ - Stopped and NotDeployed are known phases with their own colour (teal,
+   blue), legend entry, theme key, --comb-stopped / --comb-notdeployed custom
+   property and blink name. The <style> block of every picture grows by these
+   two.

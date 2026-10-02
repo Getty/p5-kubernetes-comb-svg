@@ -199,15 +199,16 @@ C<Running>.
 
 =cut
 
-sub known_phases { qw( Running Pending Blocked NeedsConfig Disabled Error ) }
+sub known_phases { qw( Running Pending Blocked NeedsConfig Disabled Error Stopped NotDeployed ) }
 
 =method known_phases
 
   my @phases = Kubernetes::Comb::SVG::Cell->known_phases;
 
 Returns the phases of C<Kubernetes::Comb> that are drawn as themselves:
-C<Running>, C<Pending>, C<Blocked>, C<NeedsConfig>, C<Disabled>, C<Error>.
-Any other phase is C<Unknown>. Callable on the class.
+C<Running>, C<Pending>, C<Blocked>, C<NeedsConfig>, C<Disabled>, C<Error>,
+C<Stopped>, C<NotDeployed> -- the order of its C<CombStatus>. Any other phase
+is C<Unknown>. Callable on the class.
 
 =cut
 

@@ -51,7 +51,10 @@ cmp_ok( scalar @combs, '>=', 10, 'ten Combs or more' );
 
 my %phase;
 $phase{ $_->getAttribute('data-phase') }++ for @combs;
-ok( $phase{$_}, 'a '.$_.' Comb' ) for Kubernetes::Comb::SVG::Cell->known_phases;
+# The demo shows the phases of a deployed stack; the two states of rest,
+# Stopped and NotDeployed, are known phases without a Comb in demo.json.
+ok( $phase{$_}, 'a '.$_.' Comb' ) for qw( Running Pending Blocked NeedsConfig Disabled Error );
+ok( Kubernetes::Comb::SVG::Cell->is_known_phase($_), $_.' is a known phase' ) for sort keys %phase;
 
 ok( $xpc->findnodes( '//s:g[ '.has_class('comb').' ][ '.has_class('borrowed').' ]' )->size,
   'a borrowed Comb' );

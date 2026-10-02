@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 724.87 432.74" role="img" class="comb-svg" aria-labelledby="comb-title comb-desc">
 <title id="comb-title">Shop</title>
 <desc id="comb-desc">15 Combs: 10 Running, 1 Pending, 1 Blocked, 1 NeedsConfig, 1 Disabled, 1 Error</desc>
-<style>.comb-svg{--comb-bg:#ffffff;--comb-border:#d0d7de;--comb-fg:#1f2328;--comb-muted:#59636e;--comb-edge:#57606a;--comb-running:#1a7f37;--comb-pending:#bf8700;--comb-blocked:#bc4c00;--comb-needsconfig:#8250df;--comb-disabled:#8c959f;--comb-error:#cf222e;--comb-unknown:#475569;--comb-tint:.13;--comb-tint-muted:.06;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif}
-@media (prefers-color-scheme:dark){.comb-svg{--comb-bg:#0d1117;--comb-border:#30363d;--comb-fg:#e6edf3;--comb-muted:#9198a1;--comb-edge:#9198a1;--comb-running:#3fb950;--comb-pending:#e3b341;--comb-blocked:#fb8f44;--comb-needsconfig:#a371f7;--comb-disabled:#6e7681;--comb-error:#f85149;--comb-unknown:#94a3b8;--comb-tint:.2;--comb-tint-muted:.09}}
+<style>.comb-svg{--comb-bg:#ffffff;--comb-border:#d0d7de;--comb-fg:#1f2328;--comb-muted:#59636e;--comb-edge:#57606a;--comb-running:#1a7f37;--comb-pending:#bf8700;--comb-blocked:#bc4c00;--comb-needsconfig:#8250df;--comb-disabled:#8c959f;--comb-error:#cf222e;--comb-stopped:#1b7c83;--comb-notdeployed:#0969da;--comb-unknown:#475569;--comb-tint:.13;--comb-tint-muted:.06;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif}
+@media (prefers-color-scheme:dark){.comb-svg{--comb-bg:#0d1117;--comb-border:#30363d;--comb-fg:#e6edf3;--comb-muted:#9198a1;--comb-edge:#9198a1;--comb-running:#3fb950;--comb-pending:#e3b341;--comb-blocked:#fb8f44;--comb-needsconfig:#a371f7;--comb-disabled:#6e7681;--comb-error:#f85149;--comb-stopped:#39c5cf;--comb-notdeployed:#58a6ff;--comb-unknown:#94a3b8;--comb-tint:.2;--comb-tint-muted:.09}}
 .comb-svg .panel{fill:var(--comb-bg);stroke:var(--comb-border);stroke-width:1}
 .comb-svg text{fill:var(--comb-fg)}
 .comb-svg .heading{font-size:19.04px;font-weight:600}
@@ -15,6 +15,8 @@
 .comb-svg .phase-NeedsConfig .hex{fill:var(--comb-needsconfig);stroke:var(--comb-needsconfig)}
 .comb-svg .phase-Disabled .hex{fill:var(--comb-disabled);stroke:var(--comb-disabled)}
 .comb-svg .phase-Error .hex{fill:var(--comb-error);stroke:var(--comb-error)}
+.comb-svg .phase-Stopped .hex{fill:var(--comb-stopped);stroke:var(--comb-stopped)}
+.comb-svg .phase-NotDeployed .hex{fill:var(--comb-notdeployed);stroke:var(--comb-notdeployed)}
 .comb-svg .phase-Unknown .hex{fill:var(--comb-unknown);stroke:var(--comb-unknown)}
 .comb-svg .borrowed .hex{stroke-dasharray:6.16 4.48}
 .comb-svg .disabled .hex{fill-opacity:var(--comb-tint-muted);stroke-opacity:.55}

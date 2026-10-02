@@ -242,10 +242,11 @@ has theme => ( is => 'ro', isa => HashRef, default => sub { {} } );
 
 Default C<{}>. A hash from key to colour, merged over the built-in colours.
 The keys are the phase names (C<Running>, C<Pending>, C<Blocked>,
-C<NeedsConfig>, C<Disabled>, C<Error>, C<Unknown>, see L</phases>) and the
-surfaces of the picture: C<bg> (the panel), C<fg> (text), C<muted> (secondary
-text), C<border> (panel outline and group rules) and C<edge> (dependency
-edges). Keys are case-sensitive; any other key is ignored.
+C<NeedsConfig>, C<Disabled>, C<Error>, C<Stopped>, C<NotDeployed>, C<Unknown>,
+see L</phases>) and the surfaces of the picture: C<bg> (the panel), C<fg>
+(text), C<muted> (secondary text), C<border> (panel outline and group rules)
+and C<edge> (dependency edges). Keys are case-sensitive; any other key is
+ignored.
 
   theme => {
     Running => '#2da44e',
@@ -359,8 +360,8 @@ sub phases {
 
 Returns the phases a cell can be drawn in, in the fixed order of the legend:
 C<Running>, C<Pending>, C<Blocked>, C<NeedsConfig>, C<Disabled>, C<Error>,
-then C<Unknown> for every other C<status.phase> (and for a missing one). These
-are the keys L</theme> understands.
+C<Stopped>, C<NotDeployed>, then C<Unknown> for every other C<status.phase>
+(and for a missing one). These are the keys L</theme> understands.
 
 =cut
 
@@ -375,6 +376,8 @@ sub _default_colours {
     NeedsConfig => [ '#8250df', '#a371f7' ],
     Disabled    => [ '#8c959f', '#6e7681' ],
     Error       => [ '#cf222e', '#f85149' ],
+    Stopped     => [ '#1b7c83', '#39c5cf' ],
+    NotDeployed => [ '#0969da', '#58a6ff' ],
     Unknown     => [ '#475569', '#94a3b8' ]
   };
 }
@@ -1111,7 +1114,8 @@ legend), the outline of the panel and the group rules, and the dependency
 edges
 
 =item * C<--comb-running>, C<--comb-pending>, C<--comb-blocked>,
-C<--comb-needsconfig>, C<--comb-disabled>, C<--comb-error>, C<--comb-unknown>:
+C<--comb-needsconfig>, C<--comb-disabled>, C<--comb-error>, C<--comb-stopped>,
+C<--comb-notdeployed>, C<--comb-unknown>:
 the colour of each phase (the name is C<--comb-> and the lower-case phase);
 it is the outline of the hexagon and, at low opacity, its fill
 

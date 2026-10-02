@@ -4,5 +4,7 @@
   { "metadata": { "name": "blocked" },     "status": { "phase": "Blocked" } },
   { "metadata": { "name": "needsconfig" }, "status": { "phase": "NeedsConfig" } },
   { "metadata": { "name": "disabled" },    "status": { "phase": "Disabled" } },
-  { "metadata": { "name": "error" },       "status": { "phase": "Error" } }
+  { "metadata": { "name": "error" },       "status": { "phase": "Error" } },
+  { "metadata": { "name": "stopped" },     "status": { "phase": "Stopped" } },
+  { "metadata": { "name": "notdeployed" }, "status": { "phase": "NotDeployed" } }
 ]

@@ -109,7 +109,16 @@ subtest 'status.phase' => sub {
     is( $cell->raw_phase, $phase, $phase.' raw' );
   }
   is_deeply( [ $CELL->known_phases ],
-    [qw( Running Pending Blocked NeedsConfig Disabled Error )], 'known phases' );
+    [qw( Running Pending Blocked NeedsConfig Disabled Error Stopped NotDeployed )],
+    'known phases, in the order of CombStatus' );
+  for my $phase (qw( Stopped NotDeployed )) {
+    ok( $CELL->is_known_phase($phase), $phase.' is a known phase' );
+    my $cr = cr('disabled-with-status');
+    $cr->{status}{phase} = $phase;
+    my $cell = $CELL->from_cr($cr);
+    is( $cell->phase,     'Disabled', $phase.': spec.enabled false still gives Disabled' );
+    is( $cell->raw_phase, $phase,     $phase.': status phase kept' );
+  }
 
   my $cell = $CELL->from_cr( cr('phase-unknown') );
   is( $cell->phase, 'Unknown', 'unknown string is Unknown' );

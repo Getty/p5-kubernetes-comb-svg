@@ -103,7 +103,7 @@ subtest 'root, title, desc, style, defs' => sub {
 
   is( count( $xpc, '//s:style' ), 1, 'exactly one style element' );
   my $css = style_text($xpc);
-  for my $var (qw( running pending blocked needsconfig disabled error unknown bg fg )) {
+  for my $var (qw( running pending blocked needsconfig disabled error stopped notdeployed unknown bg fg )) {
     like( $css, qr/--comb-\Q$var\E:#/, '--comb-'.$var.' custom property' );
   }
   my @media = $css =~ /(\@media \(prefers-color-scheme:dark\))/g;
@@ -117,7 +117,7 @@ subtest 'default title' => sub {
 
 subtest 'desc: the summary' => sub {
   is( picture('phases')->findvalue('/s:svg/s:desc'),
-    '6 Combs: 1 Running, 1 Pending, 1 Blocked, 1 NeedsConfig, 1 Disabled, 1 Error',
+    '8 Combs: 1 Running, 1 Pending, 1 Blocked, 1 NeedsConfig, 1 Disabled, 1 Error, 1 Stopped, 1 NotDeployed',
     'fixed phase order' );
   is( picture('no-status')->findvalue('/s:svg/s:desc'), '1 Comb: 1 Unknown', 'singular, Unknown counted' );
   is( picture( [] )->findvalue('/s:svg/s:desc'), '0 Combs', 'empty is 0 Combs' );
@@ -126,13 +126,18 @@ subtest 'desc: the summary' => sub {
   is( picture( \@mixed )->findvalue('/s:svg/s:desc'),
     '8 Combs: 4 Running, 1 Blocked, 2 Error, 1 Unknown',
     'counts per phase in the fixed order, Unknown last' );
+  my @rest = map { { metadata => { name => 'n'.$_ }, status => { phase => $_ < 3 ? 'NotDeployed' : 'Stopped' } } } 1 .. 3;
+  push @rest, { metadata => { name => 'e' }, status => { phase => 'Error' } }, { metadata => { name => 'v' } };
+  is( picture( \@rest )->findvalue('/s:svg/s:desc'),
+    '5 Combs: 1 Error, 1 Stopped, 2 NotDeployed, 1 Unknown',
+    'Stopped and NotDeployed are counted as themselves, after Error and before Unknown' );
 };
 
 subtest 'every phase' => sub {
   my $xpc = picture('phases');
   my @nodes = combs($xpc);
-  is( scalar @nodes, 6, 'one g.comb per cell' );
-  for my $phase (qw( Running Pending Blocked NeedsConfig Disabled Error )) {
+  is( scalar @nodes, 8, 'one g.comb per cell' );
+  for my $phase (qw( Running Pending Blocked NeedsConfig Disabled Error Stopped NotDeployed )) {
     my $node = comb( $xpc, lc $phase );
     ok( $node, $phase.': cell found' );
     ok( classes($node)->{ 'phase-'.$phase }, $phase.': class phase-'.$phase );
@@ -141,11 +146,13 @@ subtest 'every phase' => sub {
     is( count( $node, 's:polygon[ '.has_class('hex').' ]' ), 1, $phase.': one hexagon' );
     is( line( $node, 'name' ), lc $phase, $phase.': name text' );
     is( count( $node, 's:text[ '.has_class('upstream').' ]' ), 0, $phase.': no upstream line' );
+    is( !!classes($node)->{disabled}, $phase eq 'Disabled', $phase.': muted only when Disabled' );
+    is_deeply( tooltip($node), [ lc $phase, 'phase: '.$phase ], $phase.': tooltip names the phase, no raw text in brackets' );
   }
   my @points = map { val( $_, q{s:polygon/@points} ) } @nodes;
   is( scalar( () = $points[0] =~ /,/g ), 6, 'a hexagon has six points' );
   my %id = map { $_->getAttribute('data-id') => 1 } @nodes;
-  is( scalar keys %id, 6, 'six distinct data-id' );
+  is( scalar keys %id, 8, 'eight distinct data-id' );
 };
 
 subtest 'unknown phase' => sub {
@@ -335,17 +342,23 @@ subtest 'edges' => sub {
 subtest 'legend' => sub {
   my $xpc = picture('phases');
   my @items = $xpc->findnodes('//s:g[@class="legend"]/s:g[ '.has_class('legend-item').' ]');
-  is( scalar @items, 6, 'one item per phase that occurs' );
+  is( scalar @items, 8, 'one item per phase that occurs' );
   is_deeply(
     [ map { $_->getAttribute('data-phase') } @items ],
-    [qw( Running Pending Blocked NeedsConfig Disabled Error )],
+    [qw( Running Pending Blocked NeedsConfig Disabled Error Stopped NotDeployed )],
     'fixed phase order'
   );
   ok( classes( $items[0] )->{'phase-Running'}, 'item carries the phase class' );
   is( $items[0]->getAttribute('data-count'), 1, 'data-count' );
   is( count( $items[0], 's:polygon[ '.has_class('hex').' ]' ), 1, 'legend swatch is a hexagon' );
   like( $items[0]->textContent, qr/Running\s+1/, 'item text: phase and count' );
-  is( count( $xpc, '//s:'.$COMB ), 6, 'swatches are not cells' );
+  is( count( $xpc, '//s:'.$COMB ), 8, 'swatches are not cells' );
+  for my $n ( 6, 7 ) {
+    my $phase = ( 'Stopped', 'NotDeployed' )[ $n - 6 ];
+    ok( classes( $items[$n] )->{ 'phase-'.$phase }, $phase.': legend item carries the phase class' );
+    is( $items[$n]->getAttribute('data-count'), 1, $phase.': data-count' );
+    like( $items[$n]->textContent, qr/\A\s*$phase\s+1\s*\z/, $phase.': item text, phase and count' );
+  }
 
   my $some = picture( [
     ( map { { metadata => { name => 'r'.$_ }, status => { phase => 'Running' } } } 1 .. 3 ),
@@ -355,6 +368,18 @@ subtest 'legend' => sub {
   my %count = map { $_->getAttribute('data-phase') => $_->getAttribute('data-count') }
     $some->findnodes('//s:g[ '.has_class('legend-item').' ]');
   is_deeply( \%count, { Running => 3, Error => 1, Unknown => 1 }, 'only phases that occur, with counts' );
+
+  my $rest = picture( [
+    ( map { { metadata => { name => 's'.$_ }, status => { phase => 'Stopped' } } } 1 .. 2 ),
+    ( map { { metadata => { name => 'd'.$_ }, status => { phase => 'NotDeployed' } } } 1 .. 3 ),
+    { metadata => { name => 'odd' }, status => { phase => 'Hibernating' } }
+  ] );
+  is_deeply(
+    [ map { $_->getAttribute('data-phase').'='.$_->getAttribute('data-count') }
+        $rest->findnodes('//s:g[ '.has_class('legend-item').' ]') ],
+    [ 'Stopped=2', 'NotDeployed=3', 'Unknown=1' ],
+    'Stopped and NotDeployed have their own entries with counts; another string is Unknown'
+  );
 
   is( count( picture( 'phases', legend => 0 ), '//s:g[@class="legend"]' ), 0, 'legend => 0: no legend' );
   is( count( picture( [] ), '//s:g[@class="legend"]' ), 0, 'no cells: no legend' );
@@ -580,6 +605,20 @@ subtest 'theme' => sub {
   like( $css, qr/--comb-blocked:tomato/, 'a colour name is accepted' );
   like( $css, qr/--comb-pending:#bf8700/, 'other phases keep their default' );
 
+  my ( $l, $d ) = modes($default);
+  is_deeply( [ $l->{'--comb-stopped'}, $d->{'--comb-stopped'} ], [ '#1b7c83', '#39c5cf' ], 'default Stopped: teal, light and dark' );
+  is_deeply( [ $l->{'--comb-notdeployed'}, $d->{'--comb-notdeployed'} ], [ '#0969da', '#58a6ff' ],
+    'default NotDeployed: blue, light and dark' );
+  for my $phase (qw( Stopped NotDeployed )) {
+    my $var = '--comb-'.lc $phase;
+    like( $default, qr/\.phase-$phase \.hex\{fill:var\($var\);stroke:var\($var\)\}/, $phase.': the hexagon rule uses '.$var );
+    ( $l, $d ) = modes( style_text( picture( 'phases', theme => { $phase => '#abcdef' } ) ) );
+    is_deeply( [ $l->{$var}, $d->{$var} ], [ ('#abcdef') x 2 ], $phase.': one theme colour serves both modes' );
+    ( $l, $d ) = modes( style_text( picture( 'phases', theme => { $phase => { light => '#010203', dark => '#fdfeff' } } ) ) );
+    is_deeply( [ $l->{$var}, $d->{$var} ], [ '#010203', '#fdfeff' ], $phase.': theme {light,dark}' );
+    is( $l->{'--comb-unknown'}, '#475569', $phase.': Unknown keeps its own colour' );
+  }
+
   for my $bad (
     'red;}</style><script>x</script>', 'url(http://evil/x)', 'expression(alert(1))',
     '#ff00aa; background:url(x)', "#fff\n}", '}', 'red"', { a => 1 }
@@ -731,6 +770,12 @@ subtest 'blink' => sub {
   is( $SVG->new( combs => fixture('phases'), blink => [ 'Bogus', '' ] )->render, $plain,
     'only unknown phases: no animation CSS, the plain picture' );
 
+  for my $phase (qw( Stopped NotDeployed )) {
+    my $style = style_text( picture( 'phases', blink => [$phase] ) );
+    my ( $only ) = $style =~ /^([^\n@]*)\{animation:comb-blink /m;
+    is( $only, '.comb-svg .comb.phase-'.$phase.' .hex', 'blink '.$phase.': its hexagons pulse, no others' );
+  }
+
   my $all = style_text( picture( 'phases', blink => [ reverse $SVG->phases ] ) );
   my ( $every ) = $all =~ /^([^\n@]*)\{animation:comb-blink /m;
   is_deeply( [ $every =~ /\.comb\.phase-(\w+) \.hex/g ], [ $SVG->phases ],
@@ -816,7 +861,7 @@ subtest 'input shapes' => sub {
     sub TO_JSON { $_[0]{cr} }
   }
   my $xpc = picture( [ map { Local::CR->new($_) } @{ fixture('phases') } ] );
-  is( count( $xpc, '//s:'.$COMB ), 6, 'objects answering TO_JSON' );
+  is( count( $xpc, '//s:'.$COMB ), 8, 'objects answering TO_JSON' );
   is( $xpc->findvalue('/s:svg/s:desc'), picture('phases')->findvalue('/s:svg/s:desc'), 'same picture as plain hashes' );
 
   my $list = picture('list');

@@ -56,8 +56,11 @@ Fields read, all optional except the name:
 | `status.upstream` | "borrowed" marking; `context` and `via` in the tooltip |
 
 Phases known to `Kubernetes::Comb`: `Running`, `Pending`, `Blocked`,
-`NeedsConfig`, `Disabled`, `Error`. Any other string is drawn as `Unknown`
-with the original text in the tooltip — never an exception.
+`NeedsConfig`, `Disabled`, `Error`, `Stopped`, `NotDeployed` — the eight its
+`CombStatus` names, in that order. `Stopped` (scaled to zero on purpose) and
+`NotDeployed` (nothing rolled out yet) are states of rest, not faults. Any
+other string is drawn as `Unknown` with the original text in the tooltip —
+never an exception.
 
 **Identity.** A cell is identified by `namespace/name` (by `name` alone when
 the CR has no namespace), so `kubectl get combs -A` may carry the same name in
@@ -145,7 +148,9 @@ compact honeycomb, so that anything not green stands out immediately.
 - With a `link` callback, a cell is wrapped in `<a href="...">`.
 
 Default colours (overridable through `theme`): Running green, Pending amber,
-Blocked orange, NeedsConfig violet, Disabled grey, Error red, Unknown slate.
+Blocked orange, NeedsConfig violet, Disabled grey, Error red, Stopped teal,
+NotDeployed blue, Unknown slate. The two states of rest take cool colours,
+away from the warm ones that mean "look here".
 Text must stay readable on every fill in both light and dark mode.
 
 **Theme.** A `theme` value is either one colour, used in light and dark, or a
