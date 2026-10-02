@@ -1,0 +1,198 @@
+#!/usr/bin/env perl
+# PODNAME: comb-svg
+# ABSTRACT: Render Kubernetes::Comb custom resources from JSON as an SVG honeycomb
+
+use strict;
+use warnings;
+use Getopt::Long qw( GetOptionsFromArray );
+use JSON::MaybeXS;
+use Path::Tiny;
+use Scalar::Util qw( blessed );
+use Kubernetes::Comb::SVG;
+
+our $VERSION = '0.001';
+
+my $ME = 'comb-svg';
+
+sub svg_class { 'Kubernetes::Comb::SVG' }
+
+sub usage {
+  return join( "\n",
+    'Usage: '.$ME.' [options] [FILE|-]',
+    '',
+    'Reads Comb custom resources as JSON (a List, an array or one resource)',
+    'from FILE or standard input and writes the SVG to standard output.',
+    '',
+    '  --title TEXT        heading and <title> of the picture',
+    '  --group-label KEY   label key whose value names the group of a Comb',
+    '  --columns N         cells per row before a row wraps',
+    '  --size N            radius of a hexagon in SVG units',
+    '  --no-edges          leave out the dependency edges',
+    '  --no-legend         leave out the legend',
+    '  --help              this text',
+    '  --version           the version',
+    ''
+  );
+}
+
+# One line on stderr, nothing on stdout, exit 1 — for usage and data alike.
+sub fail {
+  my ( $message ) = @_;
+  $message =~ s/\s+\z//;
+  $message =~ s/\s*\n\s*/ /g;
+  print STDERR $ME.': '.$message."\n";
+  exit 1;
+}
+
+# What an exception says, without where it was thrown.
+sub reason {
+  my ( $error ) = @_;
+  $error = ''.$error;
+  $error =~ s/\A(.*) at \S.*? line \d+\.?\s*\z/$1/s;
+  return $error;
+}
+
+sub options {
+  my ( $argv ) = @_;
+  my %opt = ( edges => 1, legend => 1 );
+  my @complaints;
+  Getopt::Long::Configure(qw( no_ignore_case no_auto_abbrev ));
+  my $ok = do {
+    local $SIG{__WARN__} = sub { push @complaints, @_ };
+    GetOptionsFromArray( $argv, \%opt,
+      'title=s', 'group-label=s', 'columns=s', 'size=s',
+      'edges!', 'legend!', 'help', 'version'
+    );
+  };
+  fail( ( @complaints ? $complaints[0] : 'bad options' ).' (try --help)' ) unless $ok;
+  return \%opt if $opt{help} || $opt{version};
+
+  fail( '--columns needs a positive integer, got "'.$opt{columns}.'"' )
+    if defined $opt{columns} && $opt{columns} !~ /\A[1-9][0-9]{0,8}\z/;
+  fail( '--size needs a positive number, got "'.$opt{size}.'"' )
+    if defined $opt{size}
+    && !( $opt{size} =~ /\A(?:[0-9]{1,9}(?:\.[0-9]{1,9})?|\.[0-9]{1,9})\z/ && $opt{size} > 0 );
+  fail( 'more than one input file (try --help)' ) if @$argv > 1;
+  return \%opt;
+}
+
+sub read_input {
+  my ( $file ) = @_;
+  if ( !defined $file || $file eq '-' ) {
+    binmode STDIN;
+    local $/;
+    my $bytes = <STDIN>;
+    return ( defined $bytes ? $bytes : '', 'standard input' );
+  }
+  my $bytes = eval { path($file)->slurp_raw };
+  if ( my $error = $@ ) {
+    fail( 'cannot read '.$file.': '
+      .( blessed $error && $error->isa('Path::Tiny::Error') ? $error->{err} : reason($error) ) );
+  }
+  return ( $bytes, $file );
+}
+
+sub main {
+  my @argv = @_;
+  utf8::decode($_) for @argv;
+  my $opt = options( \@argv );
+
+  if ( $opt->{help} ) {
+    print usage();
+    return 0;
+  }
+  if ( $opt->{version} ) {
+    print $ME.' '.$VERSION."\n";
+    return 0;
+  }
+
+  my ( $bytes, $source ) = read_input( $argv[0] );
+  my $combs = eval { JSON::MaybeXS->new( utf8 => 1, allow_nonref => 1 )->decode($bytes) };
+  fail( 'invalid JSON in '.$source.': '.reason($@) ) if $@;
+  fail( $source.' is neither a List, an array of Combs nor a Comb' )
+    unless ref $combs eq 'HASH' || ref $combs eq 'ARRAY';
+
+  my $svg = eval {
+    svg_class()->new(
+      combs => $combs,
+      edges => $opt->{edges},
+      legend => $opt->{legend},
+      defined $opt->{title}         ? ( title       => $opt->{title} )         : (),
+      defined $opt->{'group-label'} ? ( group_label => $opt->{'group-label'} ) : (),
+      defined $opt->{columns}       ? ( columns     => $opt->{columns} + 0 )   : (),
+      defined $opt->{size}          ? ( size        => $opt->{size} + 0 )      : ()
+    )->render;
+  };
+  if ( my $error = $@ ) {
+    $error = reason($error);
+    $error =~ s/\A[\w:]+->\w+: //;
+    fail($error);
+  }
+
+  print $svg;
+  return 0;
+}
+
+exit main(@ARGV);
+
+__END__
+
+=head1 SYNOPSIS
+
+  kubectl get combs -A -o json | comb-svg --group-label app.kubernetes.io/part-of > combs.svg
+  comb-svg combs.json --title "Lab" --columns 4 --no-legend
+
+=head1 DESCRIPTION
+
+Reads L<Kubernetes::Comb> custom resources as JSON and writes one
+self-contained SVG honeycomb to standard output, drawn by
+L<Kubernetes::Comb::SVG>.
+
+The input is a file argument, or standard input when there is none or it is
+C<->. It is a C<List> (as C<kubectl get -o json> prints it), an array of
+custom resources or one custom resource, read as UTF-8.
+
+Bad JSON, a file that cannot be read, JSON that is neither an object nor an
+array, an element without C<metadata.name>, an unknown option or a bad option
+value: one line on standard error, nothing on standard output, exit status 1.
+
+=head1 OPTIONS
+
+=head2 --title TEXT
+
+Heading and C<< <title> >> of the picture. Default C<Combs>.
+
+=head2 --group-label KEY
+
+Label key whose value names the group of a Comb. Without it there are no
+groups.
+
+=head2 --columns N
+
+Cells per row before a row wraps, a positive integer. Default C<6>.
+
+=head2 --size N
+
+Radius of a hexagon in SVG units, a positive number. Default C<56>.
+
+=head2 --no-edges
+
+Leave out the dependency edges.
+
+=head2 --no-legend
+
+Leave out the legend.
+
+=head2 --help
+
+Print the usage and exit.
+
+=head2 --version
+
+Print the version and exit.
+
+=head1 SEE ALSO
+
+L<Kubernetes::Comb::SVG>
+
+=cut

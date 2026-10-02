@@ -15,3 +15,7 @@ Revision history for Kubernetes-Comb-SVG
    borrowed and disabled states, dependency edges routed through the label-free
    corners (cycles in a row bow in opposite directions), legend, link callback,
    theme, light and dark colour schemes.
+ - bin/comb-svg renders Comb custom resources from a JSON file or standard
+   input (a List, an array or one resource) to an SVG on standard output, with
+   --title, --group-label, --columns, --size, --no-edges and --no-legend. Bad
+   input or options give one line on standard error and exit status 1.
