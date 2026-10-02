@@ -1,0 +1,26 @@
+---
+claimed_at: 2026-10-02T02:45:50Z
+claimed_by: comb-svg-cards
+class: standard
+completed: 2026-10-02T02:45:50Z
+created: 2026-10-02T01:43:56Z
+id: 5
+priority: medium
+started: 2026-10-02T02:37:49Z
+status: done
+tags:
+- examples
+- docs
+title: 'Demo picture: examples/demo.json, demo.pl, demo.svg in the README'
+updated: 2026-10-02T02:45:50Z
+---
+
+SPEC §10. examples/demo.json with about ten Combs in two or three groups showing every phase, a borrowed Comb, a disabled one and dependencies across rows; examples/demo.pl renders it to examples/demo.svg; the committed demo.svg is embedded in README.md; a test fails when demo.svg no longer matches what the code renders. Generic names only (nats, db, mailer, ...), generic label key. Depends on the SVG card.
+
+2026-10-02 02:42 Done: examples/demo.json (15 Combs, groups platform+shop via app.kubernetes.io/part-of, all six known phases, db borrowed from context 'shared', newsletter spec.enabled false without status), examples/demo.pl (title Shop, columns 6; optional output path argument), examples/demo.svg generated, t/50-demo.t. Decisions: (1) the test RUNS demo.pl into a tempfile and compares bytes with the committed svg, so the options live only in the script; (2) 15 cells instead of 10-12: six phases in the legend need about 587 units, a 5-column picture wraps the legend to a lone second row and comes out square; 6/5/4 gives 672x541 landscape with a one-row legend; (3) two groups, foundation 'platform' sorts first so all cross-group edges point up; names chosen so dependents sit under their dependencies; no truncated name; Unknown left out. Verified: prove -lr t/ -> Files=6, Tests=252, PASS; stale svg makes 50-demo.t fail with the regenerate hint. README.md not touched (release-manager): embed line in the report. No lib/ change.
+
+Coordinator picture review (light+dark at 1100px): composition, spacing, names, legend and both colour schemes convince; 15 Combs accepted (balanced 6/5/4, one-row legend). One fix sent back: edges begin as a bare line end hovering above the dependent's name — move the start out to just inside the outline and mark it with a small dot, so the start reads as deliberate. Rule crossing, straight verticals and pale Disabled accepted as is.
+
+2026-10-02 02:44 Edge start fix done (lib/Kubernetes/Comb/SVG.pm _edge): start moved from 0.46/0.5 to 0.62 x size from the dependent's centre (cross-row and same-row bows), marked by <circle class="dep-start"> r=0.04 x size, one per edge directly after its path.dep inside g.deps, edge colour and opacity; the path leaves the dot at its rim so the translucent shapes do not overlap. No new id, no url(), path.dep attributes unchanged. Tip distances untouched (0.6): neighbour edges keep about 0.29 x size of visible line between dot and arrowhead, readable in both modes. examples/demo.svg regenerated; demo and stress sample looked at in light and dark. t/30-svg.t: new assertions in 'edges' (every path.dep followed by its dep-start circle, no other dots; chain and cycle fixtures); no existing claim changed. prove -lr t/ -> Files=6, Tests=252, PASS. Also found: where a cell is both dependency and dependent downwards (sample: api), start dots at 0.62 sit next to incoming arrow tips at 0.6 in the same corner region - distinct, but close.
+
+Committed as e2c7012
