@@ -1,0 +1,14 @@
+---
+class: standard
+created: 2026-10-02T05:47:58Z
+id: 13
+priority: low
+status: backlog
+tags:
+- lib
+- svg
+title: Blink and theme per group; aspect with a long title and a wrapping legend
+updated: 2026-10-02T05:47:58Z
+---
+
+Split off k12 (first consumer citiai-core, 2026-10-02), not built there. (1) blink and theme address phases only, not groups - wanted e.g. "only the group extern blinks" or a colour per group. (2) In packed layout aspect counts the legend as one row and ignores the title width: a long title or a legend that wraps into several rows makes the picture miss the target aspect. Both need a SPEC decision (§6 theme/blink, §5 packed) - maintainer call.
