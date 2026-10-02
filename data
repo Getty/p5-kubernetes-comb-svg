@@ -1,0 +1,36 @@
+---
+claimed_at: 2026-10-02T02:33:38Z
+claimed_by: comb-svg-cards
+class: standard
+completed: 2026-10-02T02:33:38Z
+created: 2026-10-02T01:43:56Z
+id: 3
+priority: high
+started: 2026-10-02T02:16:40Z
+status: done
+tags:
+- lib
+- svg
+title: 'SVG: draw the honeycomb'
+updated: 2026-10-02T02:33:38Z
+---
+
+SPEC §6, §7, §8. Kubernetes::Comb::SVG facade: new(combs => ..., title, group_label, columns, size, edges, legend, link, theme) and render returning one self-contained SVG string. Root svg with viewBox, role=img, title and desc summary; one style element with CSS custom properties and a prefers-color-scheme dark block; per cell a g.comb.phase-<phase> with data-name/data-phase, title tooltip, hexagon, name (ellipsis when too long), phase text; borrowed = dashed outline + upstream context; disabled muted; path.dep edges with arrowhead over the fills and under the text; legend with counts; link callback wraps the cell in an anchor (relative or http/https only). One escape function for text and one for attributes, used for every CR value. Deterministic output. Tests parse the SVG with a real XML parser (test-only dependency): phases, borrowed, disabled, edges/legend off, link, escaping in text and attribute, determinism, empty input. Depends on Cell and Layout.
+
+2026-10-02 02:22 Decisions (worker): (1) Draw order: one g.comb per cell holds title+hexagon+texts; edges sit in ONE g.deps BEFORE the comb groups. Hexagon fills are the phase colour at low fill-opacity over the panel, so an edge under a cell shows through the fill and stays under every label - SPEC 6 intent (visible, never hiding labels) without splitting a cell. Letter of SPEC 6 ('over the fills') is not met in document order. Edges are also trimmed: start 0.28*size inside the dependent's outline, arrow tip just before the dependency's outline; same-row non-neighbours get a quadratic bow. (2) Text colour never comes from the phase/theme colour (fg/muted vars only), so any theme colour keeps contrast in light and dark. (3) Output is pure ASCII: everything outside ASCII becomes a numeric character reference, XML-illegal chars are dropped - no encoding question for the caller. (4) link: callback gets the Cell; href refused if it has any whitespace/control char, or a scheme other than http(s):// (colon before first / ? #); protocol-relative //host allowed. A dying callback is caught: carp, cell drawn without link. (5) theme: only phase keys; value must be #hex, a bare name, or rgb()/hsl() over [0-9a-zA-Z%., /-]; else default. One value serves light and dark. (6) CSS is scoped under .comb-svg so an inlined SVG does not style the host page. (7) Borrowed line reads 'from <context>' or 'borrowed' without context. (8) Tooltip phase for Unknown: 'phase: Unknown (<original>)'.
+
+2026-10-02 02:22 Also found: (a) no SVG renderer on this host (rsvg-convert/inkscape/ImageMagick/chromium absent) - the picture was checked by reading the markup and geometry only, nobody has LOOKED at it yet; a visual pass in a browser is still owed. (b) examples/ (demo.pl, demo.json, demo.svg) does not exist in this tree yet, so nothing was regenerated. (c) CSS custom properties are what SPEC 6 asks for; renderers without var() support (librsvg) will draw unstyled black - presentation-attribute fallbacks would fix that, not done. (d) SPEC 6 'edges over the fills and under the text' contradicts 'one g per cell'; wording should be settled by the maintainer.
+
+2026-10-02 02:22 Done: facade + drawing in lib/Kubernetes/Comb/SVG.pm, smoke test t/30-svg.t, XML::LibXML under on test in cpanfile. Verified: prove -lr t/ -> Files=4, Tests=42, PASS; hostile sample (script-tag name, control chars, emoji, javascript:/data: links, CSS-injection theme value, cycle, groups) parses with XML::LibXML and is byte-identical across processes. Not verified: how it looks - no renderer on the host.
+
+Coordinator review (looked at light+dark previews via headless chromium): draw order accepted — SPEC §6 edge sentence reworded to 'edges before the cells, translucent fills' because 'over the fills, under the text' cannot hold with one g per cell. Sent back for visual polish: longer edge stubs between neighbours, opposite bows for the two edges of a 2-cycle, more side padding for truncated names, smaller gap between groups.
+
+2026-10-02 02:28 Visual polish done (looked at light+dark PNGs of the sample and of an all-borrowed edge stress picture). (1) Edges: no longer centre-to-centre trimmed at the outline; they run between the label-free corner regions. Across rows: straight line from 0.46*size above/below the dependent's centre (x shifted up to 0.2*size towards the dependency) to an arrow tip 0.6*size from the dependency's centre (x shifted up to 0.3*size), i.e. about 0.2*size inside its outline. Diagonal neighbour edge is now ~0.7*size long instead of ~0.3. Arrowhead 0.11 -> 0.16*size. (2) Same row: always a quadratic bow, left-to-right above the row, right-to-left below, so a 2-cycle gives two separate bows; ends at 0.5/0.55*size from the centres, rise capped after 3 steps; direct neighbours get the same bow, small, over the shared corner. (3) Name budget: hex width minus 2*0.14*size, and the char-width estimate went 0.56 -> 0.59 em (measured on the rendered sans); 'web-fronte...' now 11 chars. The estimate also feeds legend/title/group-rule widths, so the legend is spaced a touch wider. (4) Layout group_gap 0.6 -> 0.35*size; t/20-layout.t computes from group_gap, no expectation had to change. _reach removed (unused). Tests: t/30-svg.t +5 (cycle bows on opposite sides and outside the label band, name cut, data-name whole). prove -lr t/ -> Files=4, Tests=47, PASS. Also found: edges converging on one dependency from the same side share one tip point (arrowheads overlap); a straight edge that skips a row still crosses the labels of the cell in between (no routing); names of wide glyphs (hostile '<' '>') get less than 0.14 padding because width is estimated, not measured; examples/ still does not exist, nothing regenerated; Layout POD sample 'height => 685.86' is illustrative only.
+
+2026-10-02 02:28 Correction to the handoff note: t/20-layout.t does not mention group_gap at all - it asserts the claim relationally ('space between two groups', 'next heading below the last hexagon'), so it holds unchanged at 0.35*size and no expectation had to be edited.
+
+2026-10-02 02:32 Tests: t/30-svg.t rewritten (29 subtests, ~351 assertions; smoke test folded in), 16 fixtures under t/data/svg/. Pins every SPEC 10 picture behaviour. Input order does not change the output bytes (Layout sorts); pinned. No findings against lib/. prove -lr t/ -> Files=4, Tests=63, PASS.
+
+2026-10-02 02:32 Tests done, see previous note; suite green, nothing skipped
+
+2026-10-02 02:33 Committed as 5e6e252
