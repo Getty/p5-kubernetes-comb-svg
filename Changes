@@ -36,4 +36,5 @@ Revision history for Kubernetes-Comb-SVG
    Kubernetes::Comb::SVG::Layout (cells placed on the honeycomb) are public
    and documented, for callers who want the data without the drawing.
  - examples/demo.svg and examples/monitor.svg show both layouts, rendered by
-   examples/demo.pl from examples/demo.json.
+   examples/demo.pl from examples/demo.json; the README and the documentation
+   show them as PNG.

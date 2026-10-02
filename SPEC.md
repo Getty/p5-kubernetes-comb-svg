@@ -238,8 +238,10 @@ or an element without `metadata.name` → message on stderr, exit 1.
   escaping (text and attribute); `link`; `edges`/`legend` off; determinism
   (two renders are byte-identical); empty input gives a valid, empty picture.
 - `examples/demo.pl` renders `examples/demo.json` to `examples/demo.svg`; the
-  committed `demo.svg` is what the README shows, and a test checks it is
-  current.
+  committed `demo.svg` is what the README links to, and a test checks it is
+  current. `examples/png.sh` renders both example pictures to PNG for the
+  README and the POD; the PNG files are not part of the release and no test
+  checks them.
 
 ## 11. Open points
 

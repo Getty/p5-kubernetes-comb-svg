@@ -54,8 +54,16 @@ as missing in the tooltip, a dependency cycle puts its cells on one row. Only
 a Comb without C<metadata.name> is an error.
 
 C<examples/demo.pl> in the distribution renders C<examples/demo.json> to
-C<examples/demo.svg>, the picture shown in the README. The command line
+C<examples/demo.svg>, the picture the README shows. The command line
 equivalent is L<comb-svg>.
+
+=begin html
+
+<p><img src="https://raw.githubusercontent.com/Getty/p5-kubernetes-comb-svg/main/examples/demo.png" alt="Honeycomb of seventeen Combs in two groups, coloured by phase, with dependency edges" width="700"></p>
+
+<p><img src="https://raw.githubusercontent.com/Getty/p5-kubernetes-comb-svg/main/examples/monitor.png" alt="The same Combs in the packed layout, the status monitor" width="700"></p>
+
+=end html
 
 =cut
 
@@ -263,9 +271,17 @@ Accepted are C<#rgb>, C<#rgba>, C<#rrggbb>, C<#rrggbbaa>, a colour name
 numbers; any other value falls back to the built-in colour, for each mode on
 its own. Every colour ends up as a custom property, see L</THE PICTURE>.
 
-The built-in phase colours (light / dark) include C<Stopped>, cyan
-(C<#0891b2> / C<#39c5cf>), and C<NotDeployed>, blue (C<#0969da> /
-C<#58a6ff>); the other phases and the surfaces have defaults of their own.
+The built-in colours, light / dark:
+
+  Running      #1a7f37 / #3fb950      bg      #ffffff / #0d1117
+  Pending      #bf8700 / #e3b341      fg      #1f2328 / #e6edf3
+  Blocked      #bc4c00 / #fb8f44      muted   #59636e / #9198a1
+  NeedsConfig  #8250df / #a371f7      border  #d0d7de / #30363d
+  Disabled     #8c959f / #6e7681      edge    #57606a / #9198a1
+  Error        #cf222e / #f85149
+  Stopped      #0891b2 / #39c5cf
+  NotDeployed  #0969da / #58a6ff
+  Unknown      #475569 / #94a3b8
 
 =cut
 

@@ -11,6 +11,11 @@
 # With a path as argument demo.svg is written there instead and monitor.svg
 # next to it; that is how t/50-demo.t checks that the committed pictures are
 # current.
+#
+# demo.png and monitor.png are those two pictures in light mode, 1400 pixels
+# wide, for the README and the documentation: examples/png.sh makes them with
+# a headless Chromium. No test checks them, so run it after the pictures
+# changed.
 
 use strict;
 use warnings;
