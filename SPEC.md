@@ -52,6 +52,7 @@ Fields read, all optional except the name:
 | `spec.dependsOn` | dependency edges and row placement |
 | `status.phase` | colour and phase text; missing → `Unknown` |
 | `status.conditions[].message` | tooltip, when the phase is not `Running` |
+| `status.conditions[].reason` | the visible reason line, when the phase is not `Running` (§6) |
 | `status.endpoints[]` | tooltip (`name port`) |
 | `status.upstream` | "borrowed" marking; `context` and `via` in the tooltip |
 
@@ -75,7 +76,7 @@ two CRs with the same identity the first is kept.
 | Module | Job |
 |---|---|
 | `Kubernetes::Comb::SVG` | facade: `new(combs => ..., %options)`, `render` returns the SVG string |
-| `Kubernetes::Comb::SVG::Cell` | one normalised Comb: name, namespace, class, phase, depends_on, endpoints, borrowed, group, message |
+| `Kubernetes::Comb::SVG::Cell` | one normalised Comb: name, namespace, class, phase, depends_on, endpoints, borrowed, group, message, reason |
 | `Kubernetes::Comb::SVG::Layout` | places cells: groups, rows, columns, coordinates, canvas size |
 | `bin/comb-svg` | reads JSON from a file or stdin, prints the SVG |
 
@@ -136,6 +137,13 @@ compact honeycomb, so that anything not green stands out immediately.
   longest line — and, when that is still too wide, set in a smaller font.
   Only what fits neither way is cut with an ellipsis; the full name stays in
   the tooltip. A name that fits on one line is drawn as before.
+- **Reason.** A cell that is not `Running` shows why, as one small line
+  under the phase text, cut to the cell's width with an ellipsis — a wall
+  screen has no tooltip. The text is the `reason` of the `Ready` condition,
+  else of the first condition that is not `True`; a reason that only repeats
+  the phase (`Disabled`, `Stopped`) or says `NotChecked` tells nothing, and
+  the first line of that condition's `message` stands in. Without either
+  there is no line. A `Running` cell never has one.
 - **Borrowed** (a `status.upstream` is present): dashed outline and a small
   line naming the upstream context.
 - **Disabled**: muted fill and text.

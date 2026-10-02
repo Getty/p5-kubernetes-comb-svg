@@ -24,6 +24,7 @@
 .comb-svg .name{font-size:12.32px;font-weight:500}
 .comb-svg .phase{font-size:9.52px;fill:var(--comb-muted)}
 .comb-svg .upstream{font-size:8.4px;font-style:italic;fill:var(--comb-muted)}
+.comb-svg .reason{font-size:8.4px;fill:var(--comb-muted)}
 .comb-svg .disabled text{fill:var(--comb-muted);fill-opacity:.8}
 .comb-svg .dep{fill:none;stroke:var(--comb-edge);stroke-opacity:.5;stroke-width:1.4;stroke-linecap:round;pointer-events:none}
 .comb-svg .arrow{fill:var(--comb-edge);fill-opacity:.5}
@@ -88,23 +89,23 @@ endpoint: http 8080</title><polygon class="hex" points="231.19,158.13 279.69,186
 namespace: shop
 class: MyApp::Comb::Cart
 phase: Blocked
-message: waiting for catalog (Error)</title><polygon class="hex" points="336.18,158.13 384.68,186.13 384.68,242.13 336.18,270.13 287.68,242.13 287.68,186.13"/><text class="name" x="336.18" y="210.21">cart</text><text class="phase" x="336.18" y="227.01">Blocked</text></g>
+message: waiting for catalog (Error)</title><polygon class="hex" points="336.18,158.13 384.68,186.13 384.68,242.13 336.18,270.13 287.68,242.13 287.68,186.13"/><text class="name" x="336.18" y="204.61">cart</text><text class="phase" x="336.18" y="221.41">Blocked</text><text class="reason" x="336.18" y="235.41">DependencyNotRe&#8230;</text></g>
 <g class="comb phase-Error" data-name="catalog" data-id="shop/catalog" data-phase="Error"><title>shop/catalog
 namespace: shop
 class: MyApp::Comb::Catalog
 phase: Error
-message: migration 0042_add_sku failed: column &quot;sku&quot; of relation &quot;product&quot; already exists</title><polygon class="hex" points="441.18,158.13 489.68,186.13 489.68,242.13 441.18,270.13 392.68,242.13 392.68,186.13"/><text class="name" x="441.18" y="210.21">catalog</text><text class="phase" x="441.18" y="227.01">Error</text></g>
+message: migration 0042_add_sku failed: column &quot;sku&quot; of relation &quot;product&quot; already exists</title><polygon class="hex" points="441.18,158.13 489.68,186.13 489.68,242.13 441.18,270.13 392.68,242.13 392.68,186.13"/><text class="name" x="441.18" y="204.61">catalog</text><text class="phase" x="441.18" y="221.41">Error</text><text class="reason" x="441.18" y="235.41">MigrationFailed</text></g>
 <g class="comb phase-NeedsConfig" data-name="mailer" data-id="shop/mailer" data-phase="NeedsConfig"><title>shop/mailer
 namespace: shop
 class: MyApp::Comb::Mailer
 phase: NeedsConfig
-message: secret mailer-smtp has no key &quot;password&quot;</title><polygon class="hex" points="546.17,158.13 594.67,186.13 594.67,242.13 546.17,270.13 497.67,242.13 497.67,186.13"/><text class="name" x="546.17" y="210.21">mailer</text><text class="phase" x="546.17" y="227.01">NeedsConfig</text></g>
+message: secret mailer-smtp has no key &quot;password&quot;</title><polygon class="hex" points="546.17,158.13 594.67,186.13 594.67,242.13 546.17,270.13 497.67,242.13 497.67,186.13"/><text class="name" x="546.17" y="204.61">mailer</text><text class="phase" x="546.17" y="221.41">NeedsConfig</text><text class="reason" x="546.17" y="235.41">SecretIncomplete</text></g>
 <g class="comb phase-Pending" data-name="media" data-id="shop/media" data-phase="Pending"><title>shop/media
 namespace: shop
 class: MyApp::Comb::Media
 phase: Pending
 message: rollout in progress: 1 of 3 replicas ready
-endpoint: http 8080</title><polygon class="hex" points="651.17,158.13 699.67,186.13 699.67,242.13 651.17,270.13 602.67,242.13 602.67,186.13"/><text class="name" x="651.17" y="210.21">media</text><text class="phase" x="651.17" y="227.01">Pending</text></g>
+endpoint: http 8080</title><polygon class="hex" points="651.17,158.13 699.67,186.13 699.67,242.13 651.17,270.13 602.67,242.13 602.67,186.13"/><text class="name" x="651.17" y="204.61">media</text><text class="phase" x="651.17" y="221.41">Pending</text><text class="reason" x="651.17" y="235.41">RolloutInProgre&#8230;</text></g>
 <g class="comb phase-Disabled disabled" data-name="newsletter" data-id="shop/newsletter" data-phase="Disabled"><title>shop/newsletter
 namespace: shop
 class: MyApp::Comb::Newsletter

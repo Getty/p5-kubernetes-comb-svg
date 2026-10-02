@@ -24,6 +24,7 @@
 .comb-svg .name{font-size:12.32px;font-weight:500}
 .comb-svg .phase{font-size:9.52px;fill:var(--comb-muted)}
 .comb-svg .upstream{font-size:8.4px;font-style:italic;fill:var(--comb-muted)}
+.comb-svg .reason{font-size:8.4px;fill:var(--comb-muted)}
 .comb-svg .disabled text{fill:var(--comb-muted);fill-opacity:.8}
 .comb-svg .dep{fill:none;stroke:var(--comb-edge);stroke-opacity:.5;stroke-width:1.4;stroke-linecap:round;pointer-events:none}
 .comb-svg .arrow{fill:var(--comb-edge);fill-opacity:.5}
@@ -81,18 +82,18 @@ endpoint: http 8080</title><polygon class="hex" points="73.7,266 122.2,294 122.2
 namespace: shop
 class: MyApp::Comb::Catalog
 phase: Error
-message: migration 0042_add_sku failed: column &quot;sku&quot; of relation &quot;product&quot; already exists</title><polygon class="hex" points="178.69,266 227.19,294 227.19,350 178.69,378 130.19,350 130.19,294"/><text class="name" x="178.69" y="318.08">catalog</text><text class="phase" x="178.69" y="334.88">Error</text></g>
+message: migration 0042_add_sku failed: column &quot;sku&quot; of relation &quot;product&quot; already exists</title><polygon class="hex" points="178.69,266 227.19,294 227.19,350 178.69,378 130.19,350 130.19,294"/><text class="name" x="178.69" y="312.48">catalog</text><text class="phase" x="178.69" y="329.28">Error</text><text class="reason" x="178.69" y="343.28">MigrationFailed</text></g>
 <g class="comb phase-NeedsConfig" data-name="mailer" data-id="shop/mailer" data-phase="NeedsConfig"><title>shop/mailer
 namespace: shop
 class: MyApp::Comb::Mailer
 phase: NeedsConfig
-message: secret mailer-smtp has no key &quot;password&quot;</title><polygon class="hex" points="283.69,266 332.19,294 332.19,350 283.69,378 235.19,350 235.19,294"/><text class="name" x="283.69" y="318.08">mailer</text><text class="phase" x="283.69" y="334.88">NeedsConfig</text></g>
+message: secret mailer-smtp has no key &quot;password&quot;</title><polygon class="hex" points="283.69,266 332.19,294 332.19,350 283.69,378 235.19,350 235.19,294"/><text class="name" x="283.69" y="312.48">mailer</text><text class="phase" x="283.69" y="329.28">NeedsConfig</text><text class="reason" x="283.69" y="343.28">SecretIncomplete</text></g>
 <g class="comb phase-Pending" data-name="media" data-id="shop/media" data-phase="Pending"><title>shop/media
 namespace: shop
 class: MyApp::Comb::Media
 phase: Pending
 message: rollout in progress: 1 of 3 replicas ready
-endpoint: http 8080</title><polygon class="hex" points="388.68,266 437.18,294 437.18,350 388.68,378 340.18,350 340.18,294"/><text class="name" x="388.68" y="318.08">media</text><text class="phase" x="388.68" y="334.88">Pending</text></g>
+endpoint: http 8080</title><polygon class="hex" points="388.68,266 437.18,294 437.18,350 388.68,378 340.18,350 340.18,294"/><text class="name" x="388.68" y="312.48">media</text><text class="phase" x="388.68" y="329.28">Pending</text><text class="reason" x="388.68" y="343.28">RolloutInProgre&#8230;</text></g>
 <g class="comb phase-Running" data-name="payments" data-id="shop/payments" data-phase="Running"><title>shop/payments
 namespace: shop
 class: MyApp::Comb::Payments
@@ -108,7 +109,7 @@ endpoint: metrics 9090</title><polygon class="hex" points="126.19,356.93 174.69,
 namespace: shop
 class: MyApp::Comb::Cart
 phase: Blocked
-message: waiting for catalog (Error)</title><polygon class="hex" points="231.19,356.93 279.69,384.93 279.69,440.93 231.19,468.93 182.69,440.93 182.69,384.93"/><text class="name" x="231.19" y="409.01">cart</text><text class="phase" x="231.19" y="425.81">Blocked</text></g>
+message: waiting for catalog (Error)</title><polygon class="hex" points="231.19,356.93 279.69,384.93 279.69,440.93 231.19,468.93 182.69,440.93 182.69,384.93"/><text class="name" x="231.19" y="403.41">cart</text><text class="phase" x="231.19" y="420.21">Blocked</text><text class="reason" x="231.19" y="434.21">DependencyNotRe&#8230;</text></g>
 <g class="comb phase-Disabled disabled" data-name="newsletter" data-id="shop/newsletter" data-phase="Disabled"><title>shop/newsletter
 namespace: shop
 class: MyApp::Comb::Newsletter

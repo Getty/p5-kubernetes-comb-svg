@@ -46,3 +46,10 @@ Revision history for Kubernetes-Comb-SVG
    blue), legend entry, theme key, --comb-stopped / --comb-notdeployed custom
    property and blink name. The <style> block of every picture grows by these
    two.
+ - A cell that is not Running shows why: one small line under the phase, the
+   reason of its Ready condition (else of the first condition that is not
+   True), cut to the cell's width. A reason that says NotChecked or only
+   repeats the phase gives way to the first line of the condition's message.
+   Kubernetes::Comb::SVG::Cell has it as reason; the picture as text.reason,
+   with a .reason style rule only when a cell has the line. Running cells and
+   cells without a reason are drawn as before.

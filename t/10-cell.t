@@ -137,6 +137,47 @@ subtest 'status.conditions[].message' => sub {
     undef, 'no message while Running' );
 };
 
+subtest 'status.conditions[].reason' => sub {
+  my $crs    = cr('reasons');
+  my $reason = sub { $CELL->from_cr( $crs->{ $_[0] } )->reason };
+
+  is( $CELL->from_cr( cr('conditions') )->reason, 'DependencyNotReady', 'the reason of the Ready condition' );
+  is( $CELL->from_cr( cr('conditions-running') )->reason, undef, 'no reason while Running' );
+  is( $reason->('running'), undef, 'Running: none, whatever the conditions say' );
+  is( $CELL->from_cr( cr('name') )->reason, undef, 'no status: none' );
+  is( $reason->('no-conditions'), undef, 'no conditions: none' );
+
+  is( $reason->('ready-first'), 'DeployFailed', 'Ready wins over an earlier condition that is not True' );
+  is( $reason->('ready-true'), 'Deployed', 'Ready is taken even when it is True' );
+  is( $reason->('needs-config'), 'MissingPrerequisites', 'NeedsConfig as Kubernetes::Comb writes it' );
+  is( $reason->('first-not-true'), 'UpstreamUnreachable', 'without Ready: the first condition that is not True' );
+  is( $reason->('all-true'), undef, 'without Ready and all True: none' );
+
+  is( $reason->('not-checked'), 'dependencies not looked at yet', 'NotChecked tells nothing: the message stands in' );
+  is( $reason->('not-checked-alone'), undef, 'NotChecked without a message: none, no other condition is asked' );
+
+  is( $reason->('disabled'), 'disabled by spec.enabled', 'a reason that repeats the phase: the message stands in' );
+  is( $reason->('stopped'), undef, 'reason and message both repeat the phase: none' );
+  is( $reason->('not-deployed'), undef, 'repeating is judged without case and punctuation, on the first line' );
+  is( $reason->('raw-phase'), 'asleep until Monday', 'a reason that repeats the raw phase' );
+  is( $reason->('unknown-repeated'), undef, 'and one that repeats the phase the cell is drawn in' );
+
+  is( $reason->('multi-line'), 'helm upgrade failed', 'the first line of the message that says something, trimmed' );
+  is( $reason->('padded-reason'), 'DeployFailed', 'a reason is trimmed too' );
+
+  my $long = cr('conditions');
+  $long->{status}{conditions}[0]{reason} = 'R' x 300;
+  is( $CELL->from_cr($long)->reason, 'R' x 300, 'not cut here' );
+
+  is( $reason->('odd-not-a-list'), undef, 'conditions not a list: none' );
+  is( $reason->('odd-entries'), 'DeployFailed', 'entries that are no conditions are passed over' );
+  is( $reason->('odd-refs'), undef, 'references as values count as absent' );
+  is( $reason->('odd-number'), '42', 'a number is a string' );
+  is( $CELL->from_cr( cr('odd') )->reason, undef, 'the odd fixture: none' );
+  is( $CELL->from_cr( cr('odd-nested') )->reason, undef,
+    'the nested odd fixture: its first condition has no string, a later one is not asked' );
+};
+
 subtest 'status.endpoints[]' => sub {
   is_deeply(
     $CELL->from_cr( cr('endpoints') )->endpoints,
@@ -202,6 +243,7 @@ subtest 'nothing is escaped here' => sub {
   my $cell = $CELL->from_cr($cr);
   is( $cell->name, '</svg><script>', 'name as it came' );
   is( $cell->message, 'a < b & "c"', 'message as it came' );
+  is( $cell->reason,  'a < b & "c"', 'reason as it came' );
 };
 
 subtest 'missing name is the only error' => sub {

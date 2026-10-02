@@ -498,6 +498,232 @@ subtest 'long names: borrowed and hostile' => sub {
     'non-ASCII name: broken by characters, whole' );
 };
 
+#### The reason line
+
+# The text lines of a cell as they are drawn, top to bottom: class, text,
+# baseline as an offset from the centre, font size. The fonts are those of
+# the style: shares of the size.
+my %FONT = ( name => 0.22, 'name-small' => 0.185, phase => 0.17, reason => 0.15, upstream => 0.15 );
+
+sub cell_lines {
+  my ( $node, $size ) = @_;
+  $size ||= $SIZE;
+  my ( undef, $cy ) = centre( $node, $size );
+  my @lines;
+  for my $text ( child( $node, 's:text' ) ) {
+    my $class = classes($text);
+    my ( $kind ) = grep { $class->{$_} } qw( name-small name phase reason upstream );
+    my @spans = child( $text, 's:tspan' );
+    push @lines, map { {
+      class => $kind eq 'name-small' ? 'name' : $kind,
+      text  => $_->textContent,
+      at    => $_->getAttribute('y') - $cy,
+      font  => $FONT{$kind} * $size
+    } } @spans ? @spans : $text;
+  }
+  return @lines;
+}
+
+# Half the width of a pointy-top hexagon at a distance from its centre line.
+sub hex_half {
+  my ( $distance, $size ) = @_;
+  $distance = abs $distance;
+  return $distance <= $size / 2 ? $size * sqrt(3) / 2 : sqrt(3) * ( $size - $distance );
+}
+
+# Every line of a cell is inside the outline, at the width its text is
+# estimated to have (0.59 of the font a character), and no line reaches into
+# the next: a line is taken to span from three quarters of its font above the
+# baseline to a quarter below.
+sub lines_fit {
+  my ( $node, $size, $label ) = @_;
+  my @lines = cell_lines( $node, $size );
+  my $ok = 1;
+  for my $i ( 0 .. $#lines ) {
+    my $line = $lines[$i];
+    my ( $top, $bottom ) = ( $line->{at} - 0.75 * $line->{font}, $line->{at} + 0.25 * $line->{font} );
+    my $half = length( $line->{text} ) * $line->{font} * 0.59 / 2;
+    my ( $room ) = sort { $a <=> $b } hex_half( $top, $size ), hex_half( $bottom, $size );
+    $ok = 0, diag( $label.': '.$line->{class}.' line pokes out: '.$half.' > '.$room ) if $half > $room + 0.02;
+    next unless $i;
+    my $above = $lines[ $i - 1 ];
+    $ok = 0, diag( $label.': '.$line->{class}.' line overlaps the '.$above->{class}.' line' )
+      if $top < $above->{at} + 0.25 * $above->{font} - 0.02;
+  }
+  ok( $ok, $label.': every line inside the outline, none overlapping' );
+}
+
+sub reason_cr {
+  my ( $name, $phase, $reason, $context ) = @_;
+  return {
+    metadata => { name => $name },
+    status   => {
+      phase => $phase,
+      defined $reason  ? ( conditions => [ { type => 'Ready', status => 'False', reason => $reason } ] ) : (),
+      defined $context ? ( upstream => { context => $context } ) : ()
+    }
+  };
+}
+
+subtest 'reason line' => sub {
+  my $xpc = picture( [
+    reason_cr( 'ok',       'Running', 'DeployFailed' ),
+    reason_cr( 'failed',   'Error',   'DeployFailed' ),
+    reason_cr( 'sixteen',  'Error',   'ExactlySixteenCh' ),
+    reason_cr( 'config',   'NeedsConfig', 'MissingPrerequisites' ),
+    reason_cr( 'stopped',  'Stopped', 'Stopped' ),
+    reason_cr( 'silent',   'Pending' ),
+    reason_cr( 'lent',     'Running', undef, 'prod' ),
+    reason_cr( 'waiting',  'Pending', 'Deployed', 'prod' ),
+    reason_cr( 'starting', 'Starting', 'ImagePull' ),
+    { metadata => { name => 'off' }, spec => { enabled => 0 }, status => {
+      conditions => [ { type => 'Ready', status => 'False', reason => 'Disabled', message => 'disabled by spec.enabled' } ]
+    } }
+  ] );
+  my $has = sub { count( comb( $xpc, $_[0] ), 's:text[ '.has_class('reason').' ]' ) };
+
+  is( $has->('ok'), 0, 'Running: no reason line, whatever its conditions say' );
+  is( $has->('lent'), 0, 'Running and borrowed: none' );
+  is( $has->('silent'), 0, 'not Running without a reason: none' );
+  is( $has->('stopped'), 0, 'a reason that only repeats the phase: none' );
+  is( $has->('failed'), 1, 'not Running with a reason: one text.reason' );
+  is( line( comb( $xpc, 'failed' ), 'reason' ), 'DeployFailed', 'the reason as text' );
+  is( line( comb( $xpc, 'sixteen' ), 'reason' ), 'ExactlySixteenCh', 'sixteen characters fit' );
+  is( line( comb( $xpc, 'config' ), 'reason' ), "MissingPrerequi\x{2026}", 'a longer reason is cut with an ellipsis' );
+  is( line( comb( $xpc, 'starting' ), 'reason' ), 'ImagePull', 'an Unknown cell says why too' );
+  is( line( comb( $xpc, 'off' ), 'reason' ), 'disabled by spe'."\x{2026}", 'Disabled: the message stands in' );
+  ok( classes( comb( $xpc, 'off' ) )->{disabled}, 'in a cell that is muted as a whole' );
+  ok( !( grep { /reason|DeployFailed|Deployed/ } @{ tooltip( comb( $xpc, 'failed' ) ) } ),
+    'the tooltip does not gain the reason' );
+
+  is_deeply( [ map { $_->{class} } cell_lines( comb( $xpc, 'waiting' ) ) ],
+    [qw( name phase reason upstream )], 'order: name, phase, reason, upstream' );
+  is_deeply( [ map { $_->{text} } cell_lines( comb( $xpc, 'waiting' ) ) ],
+    [ 'waiting', 'Pending', 'Deployed', 'from prod' ], 'and their texts' );
+  is_deeply( [ map { $_->{class} } cell_lines( comb( $xpc, 'failed' ) ) ],
+    [qw( name phase reason )], 'order without upstream' );
+  for my $name (qw( failed waiting off )) {
+    my $cell = comb( $xpc, $name );
+    my ( $x ) = centre($cell);
+    is( $_->getAttribute('x') + 0, $x + 0, $name.': line centred on the cell' ) for child( $cell, 's:text[@x]' );
+    is( count( $cell, 's:text/*' ), 0, $name.': no element inside a text' );
+  }
+
+  # Cells without a reason line sit where they always sat: name and phase
+  # centred, a borrowed cell as before.
+  my $at = sub { [ map { sprintf '%.2f', $_->{at} } cell_lines( comb( $xpc, $_[0] ) ) ] };
+  is_deeply( $at->('ok'), [ map { sprintf '%.2f', $_ * $SIZE } -0.07, 0.23 ], 'name and phase where they were' );
+  is_deeply( $at->($_), $at->('ok'), $_.': no reason line, same baselines' ) for qw( silent stopped );
+  is_deeply( $at->('lent'), [ map { sprintf '%.2f', $_ * $SIZE } -0.17, 0.13, 0.38 ], 'borrowed: where it was' );
+  is_deeply( $at->('failed'), $at->('lent'), 'a reason line sits where the upstream line of a borrowed cell sits' );
+
+  my $style = style_text($xpc);
+  like( $style, qr/^\.comb-svg \.reason\{font-size:8\.4px;fill:var\(--comb-muted\)\}$/m,
+    'the reason line has its rule: small, muted, not italic' );
+  like( $style, qr/\.reason\{.*\.disabled text\{/s, 'the muting of a Disabled cell comes after it' );
+  my ( $upstream ) = $style =~ /\.upstream\{font-size:([0-9.]+)px/;
+  is( $upstream, '8.4', 'the font of the upstream line' );
+};
+
+subtest 'reason line: inside the hexagon' => sub {
+  my @names   = qw( db gpu-operator nvidia-device-plugin web-frontend-with-a-long-name averyveryverylongname );
+  my @reasons = ( 'Deployed', 'MissingPrerequisites', 'W' x 40 );
+  my ( @combs, $n );
+  for my $name (@names) {
+    for my $reason (@reasons) {
+      for my $context ( undef, 'prod', 'a-rather-long-context-name' ) {
+        my $cr = reason_cr( $name, 'Pending', $reason, $context );
+        $cr->{metadata}{namespace} = 'n'.++$n;
+        push @combs, $cr;
+      }
+    }
+  }
+  for my $size ( 20, $SIZE, 90 ) {
+    my $xpc = picture( \@combs, size => $size );
+    my %lines;
+    for my $cell ( combs($xpc) ) {
+      my @lines = cell_lines( $cell, $size );
+      my $id    = $cell->getAttribute('data-id');
+      lines_fit( $cell, $size, 'size '.$size.' '.$id );
+      my ( $reason ) = grep { $_->{class} eq 'reason' } @lines;
+      $lines{ scalar @lines }++;
+      cmp_ok( $reason->{at} + 0.25 * $reason->{font}, '<=', $size / 2 + 0.02,
+        'size '.$size.' '.$id.': the reason line is inside the full-width band' );
+      cmp_ok( length $reason->{text}, '<=', 16, 'size '.$size.' '.$id.': sixteen characters at most' );
+    }
+    is_deeply( [ sort keys %lines ], [ 3, 4, 5 ], 'size '.$size.': cells of three, four and five lines' );
+  }
+
+  # The worst case by name: a wrapped name, phase, reason and upstream line.
+  my $xpc  = picture( \@combs );
+  my ( $worst ) = grep { $_->getAttribute('data-name') eq 'nvidia-device-plugin'
+    && line( $_, 'upstream' ) =~ /\Afrom a-rather/ && line( $_, 'reason' ) =~ /\AW/ } combs($xpc);
+  my @lines = cell_lines($worst);
+  is_deeply( [ map { $_->{class} } @lines ], [qw( name name phase reason upstream )], 'five lines' );
+  is( $lines[3]{text}, ( 'W' x 15 )."\x{2026}", 'the reason cut to sixteen' );
+  cmp_ok( $lines[0]{at} - 0.75 * $lines[0]{font}, '>=', -0.55 * $SIZE, 'the first name line starts inside' );
+  cmp_ok( $lines[-1]{at} + 0.25 * $lines[-1]{font}, '<=', 0.55 * $SIZE, 'the upstream line ends inside' );
+
+  # The same cells without a reason are not moved by all this.
+  my @plain = map { reason_cr( $_, 'Pending', undef, 'prod' ) } @names;
+  my $plain = picture( \@plain );
+  for my $name (@names) {
+    my @at = map { $_->{at} } cell_lines( comb( $plain, $name ) );
+    my $rows = @{ name_rows( comb( $plain, $name ) ) };
+    my $step = $rows == 1 ? 0 : $at[1] - $at[0];
+    is( sprintf( '%.2f', $at[$rows] - $at[ $rows - 1 ] ), sprintf( '%.2f', 0.3 * $SIZE ),
+      $name.' without a reason: phase advance as before' );
+    is( sprintf( '%.2f', $at[-1] - $at[-2] ), sprintf( '%.2f', 0.25 * $SIZE ),
+      $name.' without a reason: upstream advance as before' );
+    is( sprintf( '%.2f', $at[0] ), sprintf( '%.2f', -0.17 * $SIZE - $step / 2 ),
+      $name.' without a reason: starts where it did' );
+  }
+};
+
+subtest 'reason line: escaped, only when needed, stable' => sub {
+  my @evil = ( '</text></svg><script>alert(1)</script>', "<b>&\"' caf\x{e9} \x{1F600}", "ctl\x01\x08x" );
+  my $combs = [ map { reason_cr( 'evil'.$_, 'Error', $evil[$_] ) } 0 .. $#evil ];
+  my $svg   = $SVG->new( combs => $combs )->render;
+  my $safe;
+  is( eval { $safe = parse($svg); 1 }, 1, 'well-formed XML' ) or diag $@;
+  unlike( $svg, qr/<script|<b>/i, 'no literal tag in the bytes' );
+  unlike( $svg, qr/[^\x00-\x7F]/, 'plain ASCII output' );
+  unlike( $svg, qr/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/, 'no control character in the document' );
+  is( count( $safe, '//*[local-name()="script" or local-name()="b"]' ), 0, 'no element from a reason' );
+  is( line( comb( $safe, 'evil0' ), 'reason' ), "</text></svg><s\x{2026}", 'hostile reason: text, cut' );
+  is( line( comb( $safe, 'evil1' ), 'reason' ), "<b>&\"' caf\x{e9} \x{1F600}", 'special and non-ASCII characters round-trip' );
+  is( line( comb( $safe, 'evil2' ), 'reason' ), 'ctlx', 'control characters dropped' );
+  is( count( comb( $safe, 'evil0' ), '*[not(self::s:title or self::s:polygon or self::s:text)]' ), 0,
+    'cell has only its own children' );
+
+  my $hostile = picture('hostile');
+  my $cell    = comb( $hostile, '</svg><script>alert(1)</script>' );
+  is( line( $cell, 'reason' ), "msg \"quoted\" & \x{2026}", 'hostile fixture: the message stands in, as text' );
+  is_deeply( [ map { $_->{class} } cell_lines($cell) ], [qw( name phase reason upstream )], 'above its upstream line' );
+
+  # A picture without a reason line carries nothing of this card.
+  my $running = [
+    reason_cr( 'db', 'Running', 'DeployFailed' ),
+    reason_cr( 'nvidia-device-plugin', 'Running', 'Deployed', 'prod' ),
+    reason_cr( 'gone', 'Stopped', 'Stopped' ),
+    reason_cr( 'idle', 'NotDeployed', 'NotChecked' )
+  ];
+  my $bare = [ map { reason_cr( $_->{metadata}{name}, $_->{status}{phase}, undef,
+    $_->{status}{upstream} ? 'prod' : undef ) } @$running ];
+  my $quiet = $SVG->new( combs => $running )->render;
+  unlike( $quiet, qr/reason/, 'no reason line: no rule and no element' );
+  is( $quiet, $SVG->new( combs => $bare )->render, 'the same bytes as without any condition' );
+  unlike( $SVG->new( combs => fixture($_) )->render, qr/reason/, $_.' fixture: nothing of it' )
+    for qw( phases borrowed chain disabled groups );
+
+  my $one = $SVG->new( combs => [ @$running, reason_cr( 'api', 'Error', 'DeployFailed' ) ] )->render;
+  is( () = $one =~ /\.reason\{/g, 1, 'one cell with a reason: the rule, once' );
+  is( count( parse($one), '//s:text[ '.has_class('reason').' ]' ), 1, 'and one element' );
+
+  my @args = ( combs => $combs, layout => 'packed', blink => ['Error'] );
+  is( $SVG->new(@args)->render, $SVG->new(@args)->render, 'reason lines: same bytes' );
+};
+
 subtest 'escaping' => sub {
   my $svg = $SVG->new( combs => fixture('hostile'), group_label => 'tier', title => '<b>"T" & \'t\'</b>' )->render;
   my $xpc;

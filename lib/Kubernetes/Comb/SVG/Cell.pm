@@ -195,7 +195,25 @@ has message => ( is => 'ro', isa => Maybe[Str] );
 
 The C<message> of every entry of C<status.conditions>, each once, joined by
 newlines; C<undef> when there is none. Only read when L</phase> is not
-C<Running>.
+C<Running>. It is what the tooltip shows; L</reason> is the one short line in
+the picture.
+
+=cut
+
+has reason => ( is => 'ro', isa => Maybe[Str] );
+
+=attr reason
+
+Why the cell is not C<Running>, in a few words and uncut: the line the
+drawing puts under the phase. C<undef> when L</phase> is C<Running>.
+
+It comes from one entry of C<status.conditions>: the one of type C<Ready>,
+else the first whose C<status> is not C<True>. Its C<reason> is taken, unless
+that is absent, is C<NotChecked>, or only repeats the phase (C<Disabled> on a
+Disabled cell; compared without case and punctuation, against L</phase> and
+L</raw_phase>). Then the first line of the C<message> of that same entry
+stands in, trimmed -- unless it too only repeats the phase. With neither, or
+without such an entry, it is C<undef>.
 
 =cut
 
@@ -265,7 +283,10 @@ sub from_cr {
       : undef,
     message          => $phase eq 'Running'
       ? undef
-      : $self->_message( $status->{conditions} )
+      : $self->_message( $status->{conditions} ),
+    reason           => $phase eq 'Running'
+      ? undef
+      : $self->_reason( $status->{conditions}, $phase, $raw_phase )
   );
 }
 
@@ -428,6 +449,36 @@ sub _message {
   my @messages = grep { defined && !$seen{$_}++ }
     map { $self->_str( $self->_hash($_)->{message} ) } $self->_list($value);
   return @messages ? join( "\n", @messages ) : undef;
+}
+
+# A text as it is compared with a phase: lower case, letters and digits only.
+sub _bare {
+  my ( $self, $value ) = @_;
+  $value = lc $value;
+  $value =~ s/[^\p{L}\p{N}]//g;
+  return $value;
+}
+
+# Why a cell is not Running: the reason of the Ready condition, else of the
+# first condition that is not True. A reason that says NotChecked or only
+# repeats one of @phases tells nothing; the first line of the message of that
+# condition stands in, unless it repeats a phase as well.
+sub _reason {
+  my ( $self, $value, @phases ) = @_;
+  my @conditions = grep { %$_ } map { $self->_hash($_) } $self->_list($value);
+  my ( $condition ) = grep { ( $self->_str( $_->{type} ) // '' ) eq 'Ready' } @conditions;
+  ( $condition ) = grep { ( $self->_str( $_->{status} ) // '' ) ne 'True' } @conditions
+    unless $condition;
+  return undef unless $condition;
+
+  my %says_nothing = map { $self->_bare($_) => 1 } '', 'NotChecked', grep { defined } @phases;
+  my ( $line ) = grep { /\S/ } split /\R/, $self->_str( $condition->{message} ) // '';
+  for my $text ( $self->_str( $condition->{reason} ), $line ) {
+    next unless defined $text;
+    $text =~ s/\A\s+|\s+\z//g;
+    return $text unless $says_nothing{ $self->_bare($text) };
+  }
+  return undef;
 }
 
 1;

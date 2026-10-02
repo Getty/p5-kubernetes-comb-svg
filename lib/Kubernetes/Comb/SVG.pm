@@ -453,8 +453,9 @@ sub _var { '--comb-'.lc $_[1] }
 
 # $small: some cell sets its name in the small two-line font. Its rule is
 # written only then, so a picture without such a name keeps its bytes.
+# $reason: some cell has a reason line; the same holds for its rule.
 sub _style {
-  my ( $self, $small ) = @_;
+  my ( $self, $small, $reason ) = @_;
   my $r       = $self->size;
   my $colours = $self->_default_colours;
   my ( @light, @dark );
@@ -490,6 +491,8 @@ sub _style {
     $s.' .phase{font-size:'.$self->_n( $self->_phase_font ).'px;fill:var(--comb-muted)}',
     $s.' .upstream{font-size:'.$self->_n( $self->_upstream_font )
       .'px;font-style:italic;fill:var(--comb-muted)}',
+    $reason ? $s.' .reason{font-size:'.$self->_n( $self->_reason_font )
+      .'px;fill:var(--comb-muted)}' : (),
     $s.' .disabled text{fill:var(--comb-muted);fill-opacity:.8}',
     $s.' .dep{fill:none;stroke:var(--comb-edge);stroke-opacity:.5;stroke-width:'
       .$self->_n( $r * 0.025 ).';stroke-linecap:round;pointer-events:none}',
@@ -523,6 +526,9 @@ sub _name_small_font { $_[0]->size * 0.185 }
 sub _phase_font { $_[0]->size * 0.17 }
 
 sub _upstream_font { $_[0]->size * 0.15 }
+
+# The reason line is as small as the upstream line: 16 characters.
+sub _reason_font { $_[0]->_upstream_font }
 
 sub _legend_font { $_[0]->size * 0.19 }
 
@@ -611,27 +617,59 @@ sub _cell_lines {
   my @names = map { [ $_, $step ] } @{ $name->{lines} };
   $names[0][1] = 0;
 
-  # The small lines under the phase, [ class, text ] each.
-  my @below;
-  push @below, [ 'upstream', $self->_fit(
-    defined $cell->upstream_context ? 'from '.$cell->upstream_context : 'borrowed',
-    $self->_upstream_font, $self->_layouter->hex_width * 0.8
-  ) ] if $cell->borrowed;
+  # The small lines under the phase, by class.
+  my $reason = $self->_shows_reason($cell);
+  my @below  = ( $reason ? 'reason' : (), $cell->borrowed ? 'upstream' : () );
 
-  my $at = -0.07 * $r - $step * $#names / 2 - 0.1 * $r * @below;
+  # A reason line in a cell of more than three lines needs the lines closer
+  # together, and the block centred as a whole, to stay inside the hexagon.
+  # Every other cell keeps the advances it always had.
+  my $tight = $reason && @names + @below > 2;
+  my ( $to_phase, $to_below ) = $tight ? ( 0.24 * $r, 0.2 * $r ) : ( 0.3 * $r, 0.25 * $r );
+  my $at = $tight
+    ? 0.06 * $r - ( $step * $#names + $to_phase + $to_below * @below ) / 2
+    : -0.07 * $r - $step * $#names / 2 - 0.1 * $r * @below;
   my @rows;
   for my $line (@names) {
     $at += $line->[1];
     push @rows, [ $line->[0], $at ];
   }
   my @lines = ( { class => $name->{small} ? 'name name-small' : 'name', rows => \@rows } );
-  $at += 0.3 * $r;
+  $at += $to_phase;
   push @lines, { class => 'phase', rows => [ [ $cell->phase, $at ] ] };
-  for my $line (@below) {
-    $at += 0.25 * $r;
-    push @lines, { class => $line->[0], rows => [ [ $line->[1], $at ] ] };
+  for my $class (@below) {
+    $at += $to_below;
+    my $font = $self->_reason_font;
+    my $text = $class eq 'reason'
+      ? $self->_fit( $cell->reason, $font,
+          $self->_line_width( $at - 0.75 * $font, $at + 0.25 * $font ) )
+      : $self->_fit(
+          defined $cell->upstream_context ? 'from '.$cell->upstream_context : 'borrowed',
+          $self->_upstream_font, $self->_layouter->hex_width * 0.8
+        );
+    push @lines, { class => $class, rows => [ [ $text, $at ] ] };
   }
   return @lines;
+}
+
+# Whether a cell gets a reason line: it has a reason and is not Running.
+sub _shows_reason {
+  my ( $self, $cell ) = @_;
+  my $reason = $cell->reason;
+  return 0 if !defined $reason || ref $reason || !length $reason;
+  return $cell->phase eq 'Running' ? 0 : 1;
+}
+
+# The width a line of text may take when it reaches from $top to $bottom,
+# both offsets from the centre of the cell: the width of the hexagon where it
+# is narrowest in that span -- full inside the middle band of half a radius
+# up and down, less towards the corners -- minus the air on both sides.
+sub _line_width {
+  my ( $self, $top, $bottom ) = @_;
+  my $r = $self->size;
+  my ( $far ) = sort { $b <=> $a } abs $top, abs $bottom;
+  my $share = $far <= $r / 2 ? 1 : $far >= $r ? 0 : 2 * ( $r - $far ) / $r;
+  return $self->_layouter->hex_width * $share - 2 * $self->_name_pad;
 }
 
 #### Escaping
@@ -726,7 +764,10 @@ sub render {
   my @out = (
     $self->_el( 'title', [ id => 'comb-title' ], $self->_text( $self->title ) ),
     $self->_el( 'desc',  [ id => 'comb-desc' ],  $self->_text($summary) ),
-    $self->_style( scalar grep { $self->_name_lines( $cell{ $_->{id} }->name )->{small} } @placed ),
+    $self->_style(
+      scalar( grep { $self->_name_lines( $cell{ $_->{id} }->name )->{small} } @placed ),
+      scalar( grep { $self->_shows_reason( $cell{ $_->{id} } ) } @placed )
+    ),
     $self->_el( 'defs', [], $self->_marker ),
     $self->_el( 'rect', [
       class  => 'panel',
@@ -1061,8 +1102,14 @@ the upstream context) and C<disabled> for a Disabled one. Attributes:
 C<data-name> (C<metadata.name>), C<data-id> (C<namespace/name>, or the name
 alone), C<data-phase>. Inside: a C<< <title> >> tooltip (id, namespace, class,
 phase, the message when the phase is not Running, endpoints, upstream,
-missing dependencies), C<polygon.hex>, C<text.name>, C<text.phase> and, for a
-borrowed Comb, C<text.upstream>. A name that does not fit on one line is
+missing dependencies), C<polygon.hex>, C<text.name>, C<text.phase>, for a
+Comb that is not Running and says why, C<text.reason> and, for a borrowed
+Comb, C<text.upstream>, in this order top to bottom. The reason line is what
+a wall screen shows in place of the tooltip: the
+L<reason|Kubernetes::Comb::SVG::Cell/reason> of the cell on one small line,
+cut with an ellipsis to the width the hexagon has there (16 characters); a
+Running cell never has it. A cell with a reason line and more than three
+lines of text sets them closer together. A name that does not fit on one line is
 broken into two after a hyphen, a dot or an underscore, each line a
 C<< <tspan> >> inside C<text.name>; when the two lines are still too wide the
 element has the class C<name-small> as well and a smaller font. Only what
@@ -1109,8 +1156,8 @@ C<@media (prefers-color-scheme: dark)> (dark values):
 =over
 
 =item * C<--comb-bg>, C<--comb-fg>, C<--comb-muted>, C<--comb-border>,
-C<--comb-edge>: the panel, the text, secondary text (group names, phase line,
-legend), the outline of the panel and the group rules, and the dependency
+C<--comb-edge>: the panel, the text, secondary text (group names, phase,
+reason and upstream line, legend), the outline of the panel and the group rules, and the dependency
 edges
 
 =item * C<--comb-running>, C<--comb-pending>, C<--comb-blocked>,
@@ -1128,7 +1175,8 @@ Classes: C<.comb> per cell with C<.phase-E<lt>PhaseE<gt>>, C<.borrowed> and
 C<.disabled> (the C<.phase-E<lt>PhaseE<gt>> class is also on the entries of
 the legend); inside it C<.hex>, C<.name> (with C<.name-small> for a
 name on two lines in the smaller font; its rule is in the C<< <style> >> only
-when a cell needs it), C<.phase> and C<.upstream>. Around
+when a cell needs it), C<.phase>, C<.reason> (its rule, too, is there only
+when a cell has a reason line) and C<.upstream>. Around
 them C<.panel>, C<.heading>, C<.group>, C<.group-name> and C<.group-rule>;
 C<.deps> with C<.dep>, C<.arrow> and C<.dep-start>; C<.legend> with
 C<.legend-item> and C<.count>. The animation is named C<comb-blink>.
@@ -1158,7 +1206,7 @@ Setting L</theme> instead needs no page CSS: it writes the same properties.
 The picture is self-contained: no script, no web font, no stylesheet link, no
 image, no reference to anything outside the document (the arrowhead is a
 C<< <marker> >> inside it). Every value that comes from a custom resource --
-names, namespaces, messages, label values, upstream contexts, a L</link>
+names, namespaces, messages, reasons, label values, upstream contexts, a L</link>
 result -- is escaped wherever it lands, in text, in C<< <title> >> and in
 attributes, and the five XML special characters become entities. Characters
 XML 1.0 cannot carry are dropped, and everything outside ASCII becomes a
