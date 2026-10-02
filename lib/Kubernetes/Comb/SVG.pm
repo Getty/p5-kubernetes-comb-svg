@@ -448,8 +448,10 @@ sub _blink_css {
 
 sub _var { '--comb-'.lc $_[1] }
 
+# $small: some cell sets its name in the small two-line font. Its rule is
+# written only then, so a picture without such a name keeps its bytes.
 sub _style {
-  my ( $self ) = @_;
+  my ( $self, $small ) = @_;
   my $r       = $self->size;
   my $colours = $self->_default_colours;
   my ( @light, @dark );
@@ -481,6 +483,7 @@ sub _style {
     $s.' .disabled .hex{fill-opacity:var(--comb-tint-muted);stroke-opacity:.55}',
     $s.' .comb text{text-anchor:middle}',
     $s.' .name{font-size:'.$self->_n( $self->_name_font ).'px;font-weight:500}',
+    $small ? $s.' .name-small{font-size:'.$self->_n( $self->_name_small_font ).'px}' : (),
     $s.' .phase{font-size:'.$self->_n( $self->_phase_font ).'px;fill:var(--comb-muted)}',
     $s.' .upstream{font-size:'.$self->_n( $self->_upstream_font )
       .'px;font-style:italic;fill:var(--comb-muted)}',
@@ -509,6 +512,10 @@ sub _title_band { $_[0]->size * 0.75 }
 sub _group_font { $_[0]->size * 0.2 }
 
 sub _name_font { $_[0]->size * 0.22 }
+
+# A name on two lines that is too wide at _name_font: 13 characters a line
+# instead of 11.
+sub _name_small_font { $_[0]->size * 0.185 }
 
 sub _phase_font { $_[0]->size * 0.17 }
 
@@ -546,6 +553,82 @@ sub _fit {
   $max = 1 if $max < 1;
   return $text if length $text <= $max;
   return substr( $text, 0, $max - 1 )."\x{2026}";
+}
+
+# How many characters fit into $width at $font, one at the least.
+sub _chars {
+  my ( $self, $font, $width ) = @_;
+  my $max = int( $width / ( $font * $self->_char_width ) );
+  return $max < 1 ? 1 : $max;
+}
+
+# The name of a cell as it is drawn: { lines => [ one or two ], small => bool }.
+# A name that fits stays one line. Otherwise it is broken after a hyphen, a
+# dot or an underscore, at the break that leaves the shortest longer line (the
+# earlier of two equal ones); when that is too wide for the name font the two
+# lines take the small one, and what is still too wide is cut there. A name
+# too long without such a character is cut on its one line.
+sub _name_lines {
+  my ( $self, $name ) = @_;
+  my $width  = $self->_layouter->hex_width - 2 * $self->_name_pad;
+  my $length = length $name;
+  return { lines => [$name], small => 0 }
+    if $length <= $self->_chars( $self->_name_font, $width );
+
+  my ( $at, $longer );
+  for my $break ( grep { substr( $name, $_ - 1, 1 ) =~ /\A[-._]\z/ } 1 .. $length - 1 ) {
+    my $rest = $length - $break;
+    my $long = $break > $rest ? $break : $rest;
+    ( $at, $longer ) = ( $break, $long ) if !defined $longer || $long < $longer;
+  }
+  return { lines => [ $self->_fit( $name, $self->_name_font, $width ) ], small => 0 }
+    unless defined $at;
+
+  my @lines = ( substr( $name, 0, $at ), substr( $name, $at ) );
+  return { lines => \@lines, small => 0 }
+    if $longer <= $self->_chars( $self->_name_font, $width );
+  return {
+    lines => [ map { $self->_fit( $_, $self->_name_small_font, $width ) } @lines ],
+    small => 1
+  };
+}
+
+# The text lines of a cell, top to bottom, as text elements: { class, rows },
+# a row being [ text, baseline as an offset from the centre of the cell ].
+# Every line position of a cell is decided here. The lines are stacked by
+# their advance, the distance of a baseline from the one above; the stack
+# starts where a cell with one name line and its phase sits centred, and
+# every further line moves that start up, so the block stays in the middle
+# and inside the full-width band of the hexagon.
+sub _cell_lines {
+  my ( $self, $cell ) = @_;
+  my $r     = $self->size;
+  my $name  = $self->_name_lines( $cell->name );
+  my $step  = $r * ( $name->{small} ? 0.21 : 0.24 );
+  my @names = map { [ $_, $step ] } @{ $name->{lines} };
+  $names[0][1] = 0;
+
+  # The small lines under the phase, [ class, text ] each.
+  my @below;
+  push @below, [ 'upstream', $self->_fit(
+    defined $cell->upstream_context ? 'from '.$cell->upstream_context : 'borrowed',
+    $self->_upstream_font, $self->_layouter->hex_width * 0.8
+  ) ] if $cell->borrowed;
+
+  my $at = -0.07 * $r - $step * $#names / 2 - 0.1 * $r * @below;
+  my @rows;
+  for my $line (@names) {
+    $at += $line->[1];
+    push @rows, [ $line->[0], $at ];
+  }
+  my @lines = ( { class => $name->{small} ? 'name name-small' : 'name', rows => \@rows } );
+  $at += 0.3 * $r;
+  push @lines, { class => 'phase', rows => [ [ $cell->phase, $at ] ] };
+  for my $line (@below) {
+    $at += 0.25 * $r;
+    push @lines, { class => $line->[0], rows => [ [ $line->[1], $at ] ] };
+  }
+  return @lines;
 }
 
 #### Escaping
@@ -640,7 +723,7 @@ sub render {
   my @out = (
     $self->_el( 'title', [ id => 'comb-title' ], $self->_text( $self->title ) ),
     $self->_el( 'desc',  [ id => 'comb-desc' ],  $self->_text($summary) ),
-    $self->_style,
+    $self->_style( scalar grep { $self->_name_lines( $cell{ $_->{id} }->name )->{small} } @placed ),
     $self->_el( 'defs', [], $self->_marker ),
     $self->_el( 'rect', [
       class  => 'panel',
@@ -795,36 +878,30 @@ sub _href {
   return $href;
 }
 
+# One text element of a cell. A single row is the text itself; several rows
+# are one <tspan> each, placed on its own, so the text content of the element
+# is still the whole of what is shown.
+sub _cell_text {
+  my ( $self, $line, $x, $y ) = @_;
+  my @rows = map { [ $self->_text( $_->[0] ), x => $self->_n($x), y => $self->_n( $y + $_->[1] ) ] }
+    @{ $line->{rows} };
+  return $self->_el( 'text', [ class => $line->{class}, @{ $rows[0] }[ 1 .. 4 ] ], $rows[0][0] )
+    if @rows == 1;
+  return $self->_el( 'text', [ class => $line->{class} ],
+    join( '', map { $self->_el( 'tspan', [ @{$_}[ 1 .. 4 ] ], $_->[0] ) } @rows ) );
+}
+
 sub _comb {
   my ( $self, $cell, $x, $y ) = @_;
   my $r        = $self->size;
   my $borrowed = $cell->borrowed;
   my $disabled = $cell->phase eq 'Disabled';
-  my $width    = $self->_layouter->hex_width;
-  my $shift    = $borrowed ? -0.1 * $r : 0;
 
   my @parts = (
     $self->_el( 'title', [], $self->_text( $self->_tooltip($cell) ) ),
     $self->_hexagon( $x, $y, $r ),
-    $self->_el( 'text', [
-      class => 'name',
-      x     => $self->_n($x),
-      y     => $self->_n( $y + $shift - 0.07 * $r )
-    ], $self->_text( $self->_fit( $cell->name, $self->_name_font, $width - 2 * $self->_name_pad ) ) ),
-    $self->_el( 'text', [
-      class => 'phase',
-      x     => $self->_n($x),
-      y     => $self->_n( $y + $shift + 0.23 * $r )
-    ], $self->_text( $cell->phase ) )
+    map { $self->_cell_text( $_, $x, $y ) } $self->_cell_lines($cell)
   );
-  push @parts, $self->_el( 'text', [
-    class => 'upstream',
-    x     => $self->_n($x),
-    y     => $self->_n( $y + $shift + 0.48 * $r )
-  ], $self->_text( $self->_fit(
-    defined $cell->upstream_context ? 'from '.$cell->upstream_context : 'borrowed',
-    $self->_upstream_font, $width * 0.8
-  ) ) ) if $borrowed;
 
   my $group = $self->_el( 'g', [
     class => join( ' ', 'comb', 'phase-'.$cell->phase,
@@ -981,9 +1058,13 @@ the upstream context) and C<disabled> for a Disabled one. Attributes:
 C<data-name> (C<metadata.name>), C<data-id> (C<namespace/name>, or the name
 alone), C<data-phase>. Inside: a C<< <title> >> tooltip (id, namespace, class,
 phase, the message when the phase is not Running, endpoints, upstream,
-missing dependencies), C<polygon.hex>, C<text.name> (cut with an ellipsis
-when too long; the full name is in the tooltip), C<text.phase> and, for a
-borrowed Comb, C<text.upstream>. With L</link> the group sits inside an
+missing dependencies), C<polygon.hex>, C<text.name>, C<text.phase> and, for a
+borrowed Comb, C<text.upstream>. A name that does not fit on one line is
+broken into two after a hyphen, a dot or an underscore, each line a
+C<< <tspan> >> inside C<text.name>; when the two lines are still too wide the
+element has the class C<name-small> as well and a smaller font. Only what
+fits neither way is cut with an ellipsis, as is a too long name without such
+a character; the full name is in the tooltip. With L</link> the group sits inside an
 C<< <a> >>. The phase is always written as text, never by colour alone.
 
 =item * C<g.deps> holds one C<path.dep> per dependency, with C<data-from> (the
@@ -1041,7 +1122,9 @@ hexagon and of a Disabled one
 
 Classes: C<.comb> per cell with C<.phase-E<lt>PhaseE<gt>>, C<.borrowed> and
 C<.disabled> (the C<.phase-E<lt>PhaseE<gt>> class is also on the entries of
-the legend); inside it C<.hex>, C<.name>, C<.phase> and C<.upstream>. Around
+the legend); inside it C<.hex>, C<.name> (with C<.name-small> for a
+name on two lines in the smaller font; its rule is in the C<< <style> >> only
+when a cell needs it), C<.phase> and C<.upstream>. Around
 them C<.panel>, C<.heading>, C<.group>, C<.group-name> and C<.group-rule>;
 C<.deps> with C<.dep>, C<.arrow> and C<.dep-start>; C<.legend> with
 C<.legend-item> and C<.count>. The animation is named C<comb-blink>.

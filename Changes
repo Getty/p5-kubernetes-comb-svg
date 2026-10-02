@@ -39,3 +39,6 @@ Revision history for Kubernetes-Comb-SVG
    canvas); edges are off unless asked for. examples/monitor.svg shows it
    (blinking for Error),
    with a freshness test, and the README too.
+ - A cell name that does not fit on one line is broken into two after a
+   hyphen, dot or underscore, in a smaller font when needed; only what fits
+   neither way is cut with an ellipsis. Names that fit are drawn as before.

@@ -128,8 +128,11 @@ compact honeycomb, so that anything not green stands out immediately.
 - One `<g class="comb phase-<phase>">` per cell, with `data-name` and
   `data-phase`, holding: a `<title>` tooltip, the hexagon, the name, and the
   phase as text below it. Phase is never carried by colour alone.
-- A name longer than fits is cut with an ellipsis; the full name stays in the
-  tooltip.
+- A name that does not fit on one line is broken into two lines after a
+  hyphen, a dot or an underscore — at the break that leaves the shorter
+  longest line — and, when that is still too wide, set in a smaller font.
+  Only what fits neither way is cut with an ellipsis; the full name stays in
+  the tooltip. A name that fits on one line is drawn as before.
 - **Borrowed** (a `status.upstream` is present): dashed outline and a small
   line naming the upstream context.
 - **Disabled**: muted fill and text.

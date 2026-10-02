@@ -360,15 +360,117 @@ subtest 'legend' => sub {
   is( count( picture( [] ), '//s:g[@class="legend"]' ), 0, 'no cells: no legend' );
 };
 
+# The rows of text.name as they are drawn: the <tspan>s of a wrapped name,
+# else the one text.
+# What a name line reaches above its baseline: about three quarters of the
+# name font, 0.22 of the size.
+my $ASCENT = $SIZE * 0.22 * 0.75;
+
+sub name_rows {
+  my ( $node ) = @_;
+  my @spans = child( $node, 's:text[ '.has_class('name').' ]/s:tspan' );
+  return [ map { $_->textContent } @spans ? @spans : child( $node, 's:text[ '.has_class('name').' ]' ) ];
+}
+
+# Baselines of the text lines of a cell, top to bottom.
+sub baselines {
+  my ( $node ) = @_;
+  return map { $_->getAttribute('y') } child( $node, 's:text[@y] | s:text/s:tspan[@y]' );
+}
+
 subtest 'long names' => sub {
-  my $name = 'web-frontend-with-a-long-name';
-  my $xpc  = picture( [ { metadata => { name => $name } } ] );
-  my $node = comb( $xpc, $name );
-  is( line( $node, 'name' ), "web-fronte\x{2026}", 'cut with an ellipsis' );
-  is( $node->getAttribute('data-name'), $name, 'data-name keeps the whole name' );
-  ok( ( grep { $_ eq 'default/'.$name || $_ eq $name } @{ tooltip($node) } ), 'the tooltip keeps the whole name' );
-  my $short = comb( picture( [ { metadata => { name => 'db' } } ] ), 'db' );
-  is( line( $short, 'name' ), 'db', 'a short name is untouched' );
+  my @names = qw(
+    db exactly11ch cert-manager gpu-operator nvidia-device-plugin
+    averyveryverylongname web-frontend-with-a-long-name a-b-c-d-e-f-g-h -leading trailing-end-
+  );
+  my $combs = [ map { { metadata => { name => $_ } } } @names ];
+  my $xpc   = picture($combs);
+  my $rows  = sub { name_rows( comb( $xpc, $_[0] ) ) };
+  my $small = sub { classes( ( child( comb( $xpc, $_[0] ), 's:text[ '.has_class('name').' ]' ) )[0] )->{'name-small'} };
+
+  is_deeply( $rows->('db'), ['db'], 'a short name is one line, untouched' );
+  is_deeply( $rows->('exactly11ch'), ['exactly11ch'], 'eleven characters still fit on one line' );
+  is( count( comb( $xpc, 'db' ), 's:text/*' ), 0, 'one line: no tspan' );
+
+  is_deeply( $rows->('cert-manager'), [ 'cert-', 'manager' ], 'cert-manager on two lines' );
+  is_deeply( $rows->('gpu-operator'), [ 'gpu-', 'operator' ], 'gpu-operator on two lines' );
+  ok( !$small->('cert-manager'), 'two lines that fit keep the name font' );
+  is_deeply( $rows->('nvidia-device-plugin'), [ 'nvidia-', 'device-plugin' ],
+    'nvidia-device-plugin: the break with the shorter longest line' );
+  ok( $small->('nvidia-device-plugin'), 'thirteen characters a line: the small font' );
+  is( line( comb( $xpc, $_ ), 'name' ), $_, $_.': the whole name is readable' )
+    for qw( cert-manager gpu-operator nvidia-device-plugin );
+  is_deeply( $rows->('a-b-c-d-e-f-g-h'), [ 'a-b-c-d-', 'e-f-g-h' ], 'of two equal breaks the earlier' );
+  is_deeply( $rows->('-leading'), ['-leading'], 'a name that fits is not broken' );
+  is_deeply( $rows->('trailing-end-'), [ 'trailing-', 'end-' ], 'no break after the last character' );
+
+  is_deeply( $rows->('averyveryverylongname'), ["averyveryv\x{2026}"],
+    'no break point: one line, cut with an ellipsis' );
+  ok( !$small->('averyveryverylongname'), 'and in the name font' );
+  is_deeply( $rows->('web-frontend-with-a-long-name'), [ 'web-frontend-', "with-a-long-\x{2026}" ],
+    'too long for two small lines: the line that overflows is cut' );
+  ok( $small->('web-frontend-with-a-long-name'), 'in the small font' );
+
+  my $node = comb( $xpc, 'web-frontend-with-a-long-name' );
+  is( $node->getAttribute('data-name'), 'web-frontend-with-a-long-name', 'data-name keeps the whole name' );
+  is( tooltip($node)->[0], 'web-frontend-with-a-long-name', 'the tooltip keeps the whole name' );
+
+  for my $name (@names) {
+    my $cell = comb( $xpc, $name );
+    is( count( $cell, 's:text[ '.has_class('name').' ]' ), 1, $name.': one text.name' );
+    is( count( $cell, 's:text/*[not(self::s:tspan)]' ), 0, $name.': nothing but tspan inside a text' );
+    my ( $x, $y ) = centre($cell);
+    my @at = baselines($cell);
+    is( scalar @at, @{ $rows->($name) } + 1, $name.': a baseline per line' );
+    is_deeply( \@at, [ sort { $a <=> $b } @at ], $name.': lines top to bottom' );
+    cmp_ok( $at[0] - $ASCENT, '>=', $y - $SIZE / 2, $name.': first line inside the full-width band' );
+    cmp_ok( $at[-1], '<=', $y + $SIZE / 2, $name.': last line inside the full-width band' );
+    cmp_ok( $at[$_] - $at[ $_ - 1 ], '>=', $SIZE * 0.2, $name.': lines do not overlap' ) for 1 .. $#at;
+    is( $_->getAttribute('x') + 0, $x + 0, $name.': line centred on the cell' )
+      for child( $cell, 's:text[@x] | s:text/s:tspan' );
+  }
+
+  like( style_text($xpc), qr/\.name-small\{font-size:[0-9.]+px\}/, 'the small font has its rule' );
+  unlike( style_text( picture( [ map { { metadata => { name => $_ } } } qw( db cert-manager ) ] ) ),
+    qr/name-small/, 'and only when a cell needs it' );
+
+  my $render = sub { $SVG->new( combs => $combs, @_ )->render };
+  is( $render->(), $render->(), 'wrapped names: same bytes' );
+  is_deeply( name_rows( comb( picture( $combs, size => 20 ), 'nvidia-device-plugin' ) ),
+    [ 'nvidia-', 'device-plugin' ], 'the break does not depend on size' );
+};
+
+subtest 'long names: borrowed and hostile' => sub {
+  my $upstream = { status => { phase => 'Running', upstream => { context => 'prod' } } };
+  my $xpc = picture( [
+    { metadata => { name => 'gpu-operator' }, %$upstream },
+    { metadata => { name => 'nvidia-device-plugin' }, %$upstream }
+  ] );
+  for my $name (qw( gpu-operator nvidia-device-plugin )) {
+    my $cell = comb( $xpc, $name );
+    ok( classes($cell)->{borrowed}, $name.': borrowed' );
+    is( line( $cell, 'name' ), $name, $name.': the whole name on two lines' );
+    is( scalar @{ name_rows($cell) }, 2, $name.': two rows' );
+    is( line( $cell, 'upstream' ), 'from prod', $name.': upstream line' );
+    my ( undef, $y ) = centre($cell);
+    my @at = baselines($cell);
+    is( scalar @at, 4, $name.': name, name, phase, upstream' );
+    cmp_ok( $at[0] - $ASCENT, '>=', $y - $SIZE / 2, $name.': first line inside the full-width band' );
+    cmp_ok( $at[-1], '<=', $y + $SIZE / 2, $name.': upstream baseline inside the full-width band' );
+    cmp_ok( $at[$_] - $at[ $_ - 1 ], '>=', $SIZE * 0.2, $name.': lines do not overlap' ) for 1 .. $#at;
+  }
+
+  # A break point inside hostile and non-ASCII names: each row is escaped.
+  my @evil = ( '</svg>-<script>alert(1)</script>', "<b>&\"'-caf\x{e9}_\x{1F600}.\x{4e2d}\x{6587}" );
+  my $svg  = $SVG->new( combs => [ map { { metadata => { name => $_ } } } @evil ] )->render;
+  my $safe;
+  is( eval { $safe = parse($svg); 1 }, 1, 'well-formed XML' ) or diag $@;
+  unlike( $svg, qr/<script/i, 'no literal script tag in the bytes' );
+  unlike( $svg, qr/[^\x00-\x7F]/, 'plain ASCII output' );
+  is( count( $safe, '//*[local-name()="script" or local-name()="b"]' ), 0, 'no element from a name' );
+  is_deeply( name_rows( comb( $safe, $evil[0] ) ), [ '</svg>-', "<script>aler\x{2026}" ], 'hostile name: rows are text' );
+  is_deeply( name_rows( comb( $safe, $evil[1] ) ), [ "<b>&\"'-", "caf\x{e9}_\x{1F600}.\x{4e2d}\x{6587}" ],
+    'non-ASCII name: broken by characters, whole' );
 };
 
 subtest 'escaping' => sub {
