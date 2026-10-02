@@ -1,0 +1,168 @@
+# Kubernetes::Comb::SVG — Design Spec
+
+Status: first draft by the coordinator, 2026-10-02. Open points are in §11.
+
+## 1. Idea
+
+A cluster run with `Kubernetes::Comb` holds one `Comb` custom resource per
+Comb. This dist turns a set of those CRs into **one SVG picture**: a honeycomb
+with one hexagon per Comb, coloured by phase, with the dependencies drawn
+between them. The picture is a plain string — a web page embeds it, a CLI
+writes it to a file. Whoever shows it (for example a status page in a site's
+own tooling) fetches the CRs and serves the result; this dist does neither.
+
+## 2. Goals and non-goals
+
+Goals:
+
+- One call from data to a complete, self-contained SVG document.
+- Readable at a glance: which Combs exist, which are healthy, what blocks what.
+- Deterministic: same input, same bytes — so tests can pin output and a page
+  can cache it.
+- Safe to embed: every string from the cluster is escaped.
+- Light: no cluster client, no web framework, no image libraries.
+
+Non-goals:
+
+- No cluster access. The caller hands in the CRs.
+- No web server, no HTML page, no JavaScript, no live updating.
+- No raster output (PNG) and no layout engine dependency (Graphviz).
+- No site policy: label keys, group names and colours are configuration.
+
+## 3. Input
+
+`combs` is an array reference. Each element is one Comb CR, either
+
+- a plain hash in CR shape (what `kubectl get combs -o json` puts in `items`), or
+- an object that answers `TO_JSON` with such a hash (the IO::K8s classes
+  `Kubernetes::Comb::CRD::Comb` do).
+
+A hash with `items` (a `List`) is accepted in place of the array.
+`Kubernetes::Comb` and `IO::K8s` are **not** dependencies: the input is duck-typed.
+
+Fields read, all optional except the name:
+
+| CR path | Used for |
+|---|---|
+| `metadata.name` | cell label and identity (required) |
+| `metadata.namespace` | tooltip |
+| `metadata.labels.<group_label>` | group, when `group_label` is set |
+| `spec.class` | tooltip |
+| `spec.enabled` | `false` → drawn as `Disabled` even without a status |
+| `spec.dependsOn` | dependency edges and row placement |
+| `status.phase` | colour and phase text; missing → `Unknown` |
+| `status.conditions[].message` | tooltip, when the phase is not `Running` |
+| `status.endpoints[]` | tooltip (`name port`) |
+| `status.upstream` | "borrowed" marking; `context` and `via` in the tooltip |
+
+Phases known to `Kubernetes::Comb`: `Running`, `Pending`, `Blocked`,
+`NeedsConfig`, `Disabled`, `Error`. Any other string is drawn as `Unknown`
+with the original text in the tooltip — never an exception.
+
+## 4. Building blocks
+
+| Module | Job |
+|---|---|
+| `Kubernetes::Comb::SVG` | facade: `new(combs => ..., %options)`, `render` returns the SVG string |
+| `Kubernetes::Comb::SVG::Cell` | one normalised Comb: name, namespace, class, phase, depends_on, endpoints, borrowed, group, message |
+| `Kubernetes::Comb::SVG::Layout` | places cells: groups, rows, columns, coordinates, canvas size |
+| `bin/comb-svg` | reads JSON from a file or stdin, prints the SVG |
+
+Reading the CR happens only in `Cell`; drawing only in `SVG`; `Layout` knows
+neither CR nor SVG — it takes cells and returns coordinates.
+
+## 5. Layout
+
+- **Groups.** With `group_label` set, cells are grouped by that label's value;
+  cells without it go to a last, unnamed group. Without `group_label` there is
+  one group. Groups are stacked top to bottom in name order, each with its
+  name as a heading.
+- **Rows by dependency depth.** Inside a group, a cell with no dependency in
+  the picture is in row 0; otherwise it is one row below its deepest
+  dependency. So "what must be up first" is always above.
+- **Cycles and unknown names.** A `dependsOn` name that is not in the input is
+  ignored for placement and listed in the tooltip as missing. A dependency
+  cycle must not hang or die: the cells of a cycle share one row.
+- **Order.** Inside a row, cells are sorted by name.
+- **Honeycomb.** Pointy-top hexagons; every second row is shifted by half a
+  cell, so rows interlock. A row longer than `columns` (default 6) wraps into
+  the next rows.
+- Depth is computed over all cells, so an edge between groups still points
+  the right way.
+
+## 6. The picture
+
+- Root `<svg>` with `xmlns`, a `viewBox` and no fixed pixel size — it scales
+  with its container. `role="img"`, plus `<title>` and `<desc>` (from `title`
+  and a generated one-line summary such as "6 Combs: 5 Running, 1 Blocked").
+- One `<style>` element inside the SVG, colours as CSS custom properties, and
+  a `@media (prefers-color-scheme: dark)` block. No external reference of any
+  kind: no web font, no stylesheet link, no image, no script.
+- One `<g class="comb phase-<phase>">` per cell, with `data-name` and
+  `data-phase`, holding: a `<title>` tooltip, the hexagon, the name, and the
+  phase as text below it. Phase is never carried by colour alone.
+- A name longer than fits is cut with an ellipsis; the full name stays in the
+  tooltip.
+- **Borrowed** (a `status.upstream` is present): dashed outline and a small
+  line naming the upstream context.
+- **Disabled**: muted fill and text.
+- **Edges**: one `<path class="dep">` per dependency, from the dependent cell
+  to its dependency, with an arrowhead at the dependency. Edges are drawn over
+  the hexagon fills and under the text, thin and half transparent, so a long
+  edge crossing other cells stays visible without hiding their labels.
+- **Legend**: the phases that occur, with their colours and counts.
+- With a `link` callback, a cell is wrapped in `<a href="...">`.
+
+Default colours (overridable through `theme`): Running green, Pending amber,
+Blocked orange, NeedsConfig violet, Disabled grey, Error red, Unknown slate.
+Text must stay readable on every fill in both light and dark mode.
+
+## 7. Options
+
+| Option | Default | Meaning |
+|---|---|---|
+| `combs` | required | the CRs, see §3 |
+| `title` | `Combs` | SVG `<title>` and the heading |
+| `group_label` | none | label key that names a cell's group |
+| `columns` | `6` | cells per row before wrapping |
+| `size` | `56` | hexagon radius in SVG units |
+| `edges` | `1` | draw dependency edges |
+| `legend` | `1` | draw the legend |
+| `link` | none | coderef `($cell) → href or undef` |
+| `theme` | built in | hash `phase → colour`, merged over the defaults |
+
+## 8. Escaping
+
+Every value that comes from a CR — names, namespaces, messages, label values,
+contexts — is XML-escaped wherever it lands: text, `<title>`, attributes. A
+`link` result is escaped as an attribute and refused unless it is relative or
+`http:`/`https:`. A Comb named `</svg><script>` must come out as text.
+
+## 9. CLI
+
+    kubectl get combs -A -o json | comb-svg --group-label app.kubernetes.io/part-of > combs.svg
+    comb-svg combs.json --title "Lab" --columns 4 --no-legend
+
+Reads a `List`, an array of CRs or one CR; writes the SVG to stdout. Bad JSON
+or an element without `metadata.name` → message on stderr, exit 1.
+
+## 10. Testing
+
+- No cluster, no network, ever. Fixtures are JSON files under `t/data/`.
+- The output is parsed with a real XML parser in the tests (test-only
+  dependency) — well-formed, and assertions look at elements and attributes,
+  not at string positions.
+- Pinned behaviours: every phase; unknown phase; missing status; disabled;
+  borrowed; groups; depth rows; wrap at `columns`; cycle; unknown dependency;
+  escaping (text and attribute); `link`; `edges`/`legend` off; determinism
+  (two renders are byte-identical); empty input gives a valid, empty picture.
+- `examples/demo.pl` renders `examples/demo.json` to `examples/demo.svg`; the
+  committed `demo.svg` is what the README shows, and a test checks it is
+  current.
+
+## 11. Open points
+
+- Whether a cell should show pod readiness (`2/3`) — needs data the CR does
+  not carry today.
+- Whether groups should be laid out side by side on wide canvases.
+- An HTML wrapper with auto-refresh is the caller's job for now.

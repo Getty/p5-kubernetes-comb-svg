@@ -1,0 +1,7 @@
+Revision history for Kubernetes-Comb-SVG
+
+{{$NEXT}}
+
+ - First release. Renders a set of Kubernetes::Comb custom resources as one
+   self-contained SVG honeycomb: one hexagon per Comb, coloured by phase,
+   with dependency edges and upstream (borrowed) marking.
