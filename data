@@ -1,0 +1,23 @@
+{"action":"handoff","agent":"cards-9-12","detail":"review","task_id":10,"ts":"2026-10-02T05:38:27Z"}
+{"action":"edit","agent":"cards-9-12","detail":"review","task_id":10,"ts":"2026-10-02T05:39:37Z"}
+{"action":"move","agent":"cards-9-12","detail":"done","task_id":10,"ts":"2026-10-02T05:39:38Z"}
+{"action":"edit","agent":"Torsten Raudssus","detail":"done","task_id":10,"ts":"2026-10-02T05:39:49Z"}
+{"action":"move","agent":"cards-9-12","detail":"in-progress","task_id":11,"ts":"2026-10-02T05:40:19Z"}
+{"action":"edit","agent":"cards-9-12","detail":"in-progress","task_id":11,"ts":"2026-10-02T05:46:10Z"}
+{"action":"move","agent":"cards-9-12","detail":"review","task_id":11,"ts":"2026-10-02T05:46:11Z"}
+{"action":"edit","agent":"cards-9-12","detail":"review","task_id":11,"ts":"2026-10-02T05:47:32Z"}
+{"action":"move","agent":"cards-9-12","detail":"done","task_id":11,"ts":"2026-10-02T05:47:33Z"}
+{"action":"edit","agent":"Torsten Raudssus","detail":"done","task_id":11,"ts":"2026-10-02T05:47:35Z"}
+{"action":"move","agent":"cards-9-12","detail":"in-progress","task_id":12,"ts":"2026-10-02T05:47:57Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":13,"ts":"2026-10-02T05:47:58Z"}
+{"action":"edit","agent":"cards-9-12","detail":"in-progress","task_id":12,"ts":"2026-10-02T05:50:13Z"}
+{"action":"handoff","agent":"cards-9-12","detail":"review","task_id":12,"ts":"2026-10-02T05:52:01Z"}
+{"action":"edit","agent":"cards-9-12","detail":"review","task_id":12,"ts":"2026-10-02T05:52:07Z"}
+{"action":"edit","agent":"cards-9-12","detail":"review","task_id":12,"ts":"2026-10-02T05:53:22Z"}
+{"action":"move","agent":"cards-9-12","detail":"done","task_id":12,"ts":"2026-10-02T05:53:22Z"}
+{"action":"create","agent":"cards-9-12","detail":"in-progress","task_id":14,"ts":"2026-10-02T05:53:58Z"}
+{"action":"edit","agent":"cards-9-12","detail":"in-progress","task_id":14,"ts":"2026-10-02T06:01:46Z"}
+{"action":"move","agent":"cards-9-12","detail":"review","task_id":14,"ts":"2026-10-02T06:01:50Z"}
+{"action":"move","agent":"cards-9-12","detail":"done","task_id":14,"ts":"2026-10-02T06:03:19Z"}
+{"action":"edit","agent":"cards-9-12","detail":"done","task_id":14,"ts":"2026-10-02T06:03:19Z"}
+{"action":"edit","agent":"Torsten Raudssus","detail":"done","task_id":14,"ts":"2026-10-02T06:03:22Z"}
