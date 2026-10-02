@@ -376,7 +376,7 @@ sub _default_colours {
     NeedsConfig => [ '#8250df', '#a371f7' ],
     Disabled    => [ '#8c959f', '#6e7681' ],
     Error       => [ '#cf222e', '#f85149' ],
-    Stopped     => [ '#1b7c83', '#39c5cf' ],
+    Stopped     => [ '#0891b2', '#39c5cf' ],
     NotDeployed => [ '#0969da', '#58a6ff' ],
     Unknown     => [ '#475569', '#94a3b8' ]
   };
@@ -604,52 +604,128 @@ sub _name_lines {
 
 # The text lines of a cell, top to bottom, as text elements: { class, rows },
 # a row being [ text, baseline as an offset from the centre of the cell ].
-# Every line position of a cell is decided here. The lines are stacked by
-# their advance, the distance of a baseline from the one above; the stack
-# starts where a cell with one name line and its phase sits centred, and
-# every further line moves that start up, so the block stays in the middle
-# and inside the full-width band of the hexagon.
+# Where the lines sit is decided by _cell_baselines. A reason too long for
+# its line takes a second one where the cell has the room, see _reason_break.
 sub _cell_lines {
   my ( $self, $cell ) = @_;
-  my $r     = $self->size;
-  my $name  = $self->_name_lines( $cell->name );
-  my $step  = $r * ( $name->{small} ? 0.21 : 0.24 );
-  my @names = map { [ $_, $step ] } @{ $name->{lines} };
-  $names[0][1] = 0;
+  my $name   = $self->_name_lines( $cell->name );
+  my @names  = @{ $name->{lines} };
+  my $step   = $self->size * ( $name->{small} ? 0.21 : 0.24 );
+  my $reason = $self->_shows_reason($cell);
 
   # The small lines under the phase, by class.
-  my $reason = $self->_shows_reason($cell);
-  my @below  = ( $reason ? 'reason' : (), $cell->borrowed ? 'upstream' : () );
+  my @below = ( $reason ? 'reason' : (), $cell->borrowed ? 'upstream' : () );
+  my @at    = $self->_cell_baselines( scalar @names, $step, @below );
+  my @reason;
+  if ($reason) {
+    my $text = $cell->reason;
+    my $one  = $at[ @names + 1 ];
+    @reason = ( $self->_fit( $text, $self->_reason_font, $self->_reason_width($one) ) );
+    my @two = length $text > $self->_reason_chars($one)
+      ? $self->_cell_baselines( scalar @names, $step, 'reason', @below )
+      : ();
+    if (@two) {
+      my @under = @two[ @names + 1, @names + 2 ];
+      if ( my @broken = $self->_reason_break( $text, map { $self->_reason_chars($_) } @under ) ) {
+        $broken[1] = $self->_fit( $broken[1], $self->_reason_font, $self->_reason_width( $under[1] ) );
+        @reason = @broken;
+        @at     = @two;
+      }
+    }
+  }
 
-  # A reason line in a cell of more than three lines needs the lines closer
-  # together, and the block centred as a whole, to stay inside the hexagon.
-  # Every other cell keeps the advances it always had.
-  my $tight = $reason && @names + @below > 2;
-  my ( $to_phase, $to_below ) = $tight ? ( 0.24 * $r, 0.2 * $r ) : ( 0.3 * $r, 0.25 * $r );
-  my $at = $tight
-    ? 0.06 * $r - ( $step * $#names + $to_phase + $to_below * @below ) / 2
-    : -0.07 * $r - $step * $#names / 2 - 0.1 * $r * @below;
-  my @rows;
-  for my $line (@names) {
-    $at += $line->[1];
-    push @rows, [ $line->[0], $at ];
-  }
-  my @lines = ( { class => $name->{small} ? 'name name-small' : 'name', rows => \@rows } );
-  $at += $to_phase;
-  push @lines, { class => 'phase', rows => [ [ $cell->phase, $at ] ] };
-  for my $class (@below) {
-    $at += $to_below;
-    my $font = $self->_reason_font;
-    my $text = $class eq 'reason'
-      ? $self->_fit( $cell->reason, $font,
-          $self->_line_width( $at - 0.75 * $font, $at + 0.25 * $font ) )
-      : $self->_fit(
-          defined $cell->upstream_context ? 'from '.$cell->upstream_context : 'borrowed',
-          $self->_upstream_font, $self->_layouter->hex_width * 0.8
-        );
-    push @lines, { class => $class, rows => [ [ $text, $at ] ] };
-  }
+  my @lines = (
+    { class => $name->{small} ? 'name name-small' : 'name', rows => [ map { [ $_, shift @at ] } @names ] },
+    { class => 'phase', rows => [ [ $cell->phase, shift @at ] ] }
+  );
+  push @lines, { class => 'reason', rows => [ map { [ $_, shift @at ] } @reason ] } if $reason;
+  push @lines, { class => 'upstream', rows => [ [
+    $self->_fit(
+      defined $cell->upstream_context ? 'from '.$cell->upstream_context : 'borrowed',
+      $self->_upstream_font, $self->_layouter->hex_width * 0.8
+    ),
+    shift @at
+  ] ] } if $cell->borrowed;
   return @lines;
+}
+
+# The baselines of the lines of a cell, top to bottom, as offsets from its
+# centre: $names name lines $step apart, the phase, then one line per class in
+# @below ('reason', once or twice, and 'upstream'). The lines are stacked by
+# their advance, the distance of a baseline from the one above.
+#
+# A cell without a reason line, and one with nothing but one name line, the
+# phase and one reason line, starts where a cell with one name line and its
+# phase sits centred, every further line moving that start up.
+#
+# Every other cell with a reason line is tight: the small lines sit closer
+# together and the block is centred as a whole, to stay inside the hexagon.
+# The advances of such a block may add up to 0.89 of the size; what the block
+# leaves of that goes to the phase, up to 0.28 of the size from the name
+# above it, so that it does not read as one more name line. A block that is
+# too high even with the phase at 0.24 gives an empty list when it has two
+# reason lines -- there is no room for the second -- and is drawn as it is
+# otherwise.
+sub _cell_baselines {
+  my ( $self, $names, $step, @below ) = @_;
+  my $r      = $self->size;
+  my $reason = grep { $_ eq 'reason' } @below;
+  my $tight  = $reason && $names + @below > 2;
+  my ( $to_phase, $to_below ) = $tight ? ( 0.24 * $r, 0.2 * $r ) : ( 0.3 * $r, 0.25 * $r );
+  my @advance = ( $to_below ) x @below;
+  $advance[1] = 0.17 * $r if $reason > 1;
+
+  my $at;
+  if ($tight) {
+    my $sum = $step * ( $names - 1 ) + $to_phase;
+    $sum += $_ for @advance;
+    my $spare = 0.89 * $r - $sum;
+    return if $reason > 1 && $spare < -$r * 1e-9;
+    $spare = $spare < 0 ? 0 : $spare > 0.04 * $r ? 0.04 * $r : $spare;
+    $to_phase += $spare;
+    $at = 0.06 * $r - ( $sum + $spare ) / 2;
+  }
+  else {
+    $at = -0.07 * $r - $step * ( $names - 1 ) / 2 - 0.1 * $r * @below;
+  }
+  my @at = ( $at );
+  push @at, $at += $_ for ( $step ) x ( $names - 1 ), $to_phase, @advance;
+  return @at;
+}
+
+# The width a reason line with its baseline at $at may take, and the number
+# of characters that is: sixteen inside the full-width band of the hexagon,
+# fewer for a line that reaches below it.
+sub _reason_width {
+  my ( $self, $at ) = @_;
+  my $font = $self->_reason_font;
+  return $self->_line_width( $at - 0.75 * $font, $at + 0.25 * $font );
+}
+
+sub _reason_chars {
+  my ( $self, $at ) = @_;
+  return $self->_chars( $self->_reason_font, $self->_reason_width($at) );
+}
+
+# A reason on two lines of at most $first and $second characters, or nothing
+# when it cannot be broken. It breaks at a run of whitespace, which is
+# dropped, and before an upper-case letter that follows a lower-case letter
+# or a digit. Of the breaks that make both lines fit it takes the one with the
+# shortest longer line (the earlier of two equal ones); when there is none,
+# the last break whose first line fits, the second line then being too long
+# and left to the caller to cut.
+sub _reason_break {
+  my ( $self, $text, $first, $second ) = @_;
+  my ( @best, $longer, @last );
+  while ( $text =~ /\s+|(?<=[\p{Ll}0-9])(?=\p{Lu})/g ) {
+    my @lines = ( substr( $text, 0, $-[0] ), substr( $text, $+[0] ) );
+    next if !length $lines[0] || !length $lines[1] || length $lines[0] > $first;
+    @last = @lines;
+    next if length $lines[1] > $second;
+    my ( $long ) = sort { $b <=> $a } map { length } @lines;
+    ( $longer, @best ) = ( $long, @lines ) if !defined $longer || $long < $longer;
+  }
+  return @best ? @best : @last;
 }
 
 # Whether a cell gets a reason line: it has a reason and is not Running.
@@ -1118,10 +1194,21 @@ the upstream names a chain), C<polygon.hex>, C<text.name>, C<text.phase>, for a
 Comb that is not Running and says why, C<text.reason> and, for a borrowed
 Comb, C<text.upstream>, in this order top to bottom. The reason line is what
 a wall screen shows in place of the tooltip: the
-L<reason|Kubernetes::Comb::SVG::Cell/reason> of the cell on one small line,
-cut with an ellipsis to the width the hexagon has there (16 characters); a
-Running cell never has it. A cell with a reason line and more than three
-lines of text sets them closer together. A name that does not fit on one line is
+L<reason|Kubernetes::Comb::SVG::Cell/reason> of the cell in small text, 16
+characters a line; a Running cell never has it. A reason too long for one
+line is broken into two, each a C<< <tspan> >> inside C<text.reason>: at a
+run of whitespace, which is dropped, or before an upper-case letter that
+follows a lower-case letter or a digit (C<Missing> / C<Prerequisites>), at
+the break that leaves the shortest longer line. When no break makes both
+lines fit, the last one whose first line fits is taken and the second line
+is cut with an ellipsis; a reason without such a break is cut on its one
+line. So is every too long reason in a cell that has no room for a sixth
+line of text: a name on two lines, the phase and an upstream line. Under a
+name on two lines the second reason line sits where the hexagon narrows and
+holds 14 characters, 15 under a name in the smaller font. A cell with a
+reason line and more than three lines of text sets them closer together, the
+phase a little further from the name than the name lines are from each
+other. A name that does not fit on one line is
 broken into two after a hyphen, a dot or an underscore, each line a
 C<< <tspan> >> inside C<text.name>; when the two lines are still too wide the
 element has the class C<name-small> as well and a smaller font. Only what

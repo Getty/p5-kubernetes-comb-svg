@@ -42,7 +42,7 @@ Revision history for Kubernetes-Comb-SVG
  - A cell name that does not fit on one line is broken into two after a
    hyphen, dot or underscore, in a smaller font when needed; only what fits
    neither way is cut with an ellipsis. Names that fit are drawn as before.
- - Stopped and NotDeployed are known phases with their own colour (teal,
+ - Stopped and NotDeployed are known phases with their own colour (cyan,
    blue), legend entry, theme key, --comb-stopped / --comb-notdeployed custom
    property and blink name. The <style> block of every picture grows by these
    two.
@@ -60,3 +60,9 @@ Revision history for Kubernetes-Comb-SVG
    class and context of every Comb that records one and says "(not
    borrowing)" when the cell is not borrowed. Cell has upstream_recorded,
    upstream_class and the class method borrowing_phases.
+ - A reason too long for its line is broken into two, at a space or before a
+   capital inside a word, before it is cut; a cell with no room for a sixth
+   line of text keeps one cut line. In a cell with tight lines the phase sits
+   further from the name than the name lines from each other.
+ - The default light colour of Stopped is #0891b2 (cyan), easier to tell from
+   Running.

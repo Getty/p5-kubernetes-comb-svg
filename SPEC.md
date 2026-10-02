@@ -146,9 +146,11 @@ compact honeycomb, so that anything not green stands out immediately.
   longest line — and, when that is still too wide, set in a smaller font.
   Only what fits neither way is cut with an ellipsis; the full name stays in
   the tooltip. A name that fits on one line is drawn as before.
-- **Reason.** A cell that is not `Running` shows why, as one small line
-  under the phase text, cut to the cell's width with an ellipsis — a wall
-  screen has no tooltip. The text is the `reason` of the `Ready` condition,
+- **Reason.** A cell that is not `Running` shows why, in small text
+  under the phase text — a wall screen has no tooltip. What does not fit on
+  one line is broken into two, at a space or before a capital inside a word
+  (`Missing` / `Prerequisites`); only what still does not fit the cell's
+  width is cut with an ellipsis. The text is the `reason` of the `Ready` condition,
   else of the first condition that is not `True`; a reason that only repeats
   the phase (`Disabled`, `Stopped`) or says `NotChecked` tells nothing, and
   the first line of that condition's `message` stands in. Without either
@@ -167,7 +169,7 @@ compact honeycomb, so that anything not green stands out immediately.
 - With a `link` callback, a cell is wrapped in `<a href="...">`.
 
 Default colours (overridable through `theme`): Running green, Pending amber,
-Blocked orange, NeedsConfig violet, Disabled grey, Error red, Stopped teal,
+Blocked orange, NeedsConfig violet, Disabled grey, Error red, Stopped cyan,
 NotDeployed blue, Unknown slate. The two states of rest take cool colours,
 away from the warm ones that mean "look here".
 Text must stay readable on every fill in both light and dark mode.

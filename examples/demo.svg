@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 672.37 540.61" role="img" class="comb-svg" aria-labelledby="comb-title comb-desc">
 <title id="comb-title">Shop</title>
 <desc id="comb-desc">15 Combs: 10 Running, 1 Pending, 1 Blocked, 1 NeedsConfig, 1 Disabled, 1 Error</desc>
-<style>.comb-svg{--comb-bg:#ffffff;--comb-border:#d0d7de;--comb-fg:#1f2328;--comb-muted:#59636e;--comb-edge:#57606a;--comb-running:#1a7f37;--comb-pending:#bf8700;--comb-blocked:#bc4c00;--comb-needsconfig:#8250df;--comb-disabled:#8c959f;--comb-error:#cf222e;--comb-stopped:#1b7c83;--comb-notdeployed:#0969da;--comb-unknown:#475569;--comb-tint:.13;--comb-tint-muted:.06;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif}
+<style>.comb-svg{--comb-bg:#ffffff;--comb-border:#d0d7de;--comb-fg:#1f2328;--comb-muted:#59636e;--comb-edge:#57606a;--comb-running:#1a7f37;--comb-pending:#bf8700;--comb-blocked:#bc4c00;--comb-needsconfig:#8250df;--comb-disabled:#8c959f;--comb-error:#cf222e;--comb-stopped:#0891b2;--comb-notdeployed:#0969da;--comb-unknown:#475569;--comb-tint:.13;--comb-tint-muted:.06;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif}
 @media (prefers-color-scheme:dark){.comb-svg{--comb-bg:#0d1117;--comb-border:#30363d;--comb-fg:#e6edf3;--comb-muted:#9198a1;--comb-edge:#9198a1;--comb-running:#3fb950;--comb-pending:#e3b341;--comb-blocked:#fb8f44;--comb-needsconfig:#a371f7;--comb-disabled:#6e7681;--comb-error:#f85149;--comb-stopped:#39c5cf;--comb-notdeployed:#58a6ff;--comb-unknown:#94a3b8;--comb-tint:.2;--comb-tint-muted:.09}}
 .comb-svg .panel{fill:var(--comb-bg);stroke:var(--comb-border);stroke-width:1}
 .comb-svg text{fill:var(--comb-fg)}
@@ -93,7 +93,7 @@ namespace: shop
 class: MyApp::Comb::Media
 phase: Pending
 message: rollout in progress: 1 of 3 replicas ready
-endpoint: http 8080</title><polygon class="hex" points="388.68,266 437.18,294 437.18,350 388.68,378 340.18,350 340.18,294"/><text class="name" x="388.68" y="312.48">media</text><text class="phase" x="388.68" y="329.28">Pending</text><text class="reason" x="388.68" y="343.28">RolloutInProgre&#8230;</text></g>
+endpoint: http 8080</title><polygon class="hex" points="388.68,266 437.18,294 437.18,350 388.68,378 340.18,350 340.18,294"/><text class="name" x="388.68" y="307.16">media</text><text class="phase" x="388.68" y="322.84">Pending</text><text class="reason"><tspan x="388.68" y="334.04">RolloutIn</tspan><tspan x="388.68" y="343.56">Progress</tspan></text></g>
 <g class="comb phase-Running" data-name="payments" data-id="shop/payments" data-phase="Running"><title>shop/payments
 namespace: shop
 class: MyApp::Comb::Payments
@@ -109,7 +109,7 @@ endpoint: metrics 9090</title><polygon class="hex" points="126.19,356.93 174.69,
 namespace: shop
 class: MyApp::Comb::Cart
 phase: Blocked
-message: waiting for catalog (Error)</title><polygon class="hex" points="231.19,356.93 279.69,384.93 279.69,440.93 231.19,468.93 182.69,440.93 182.69,384.93"/><text class="name" x="231.19" y="403.41">cart</text><text class="phase" x="231.19" y="420.21">Blocked</text><text class="reason" x="231.19" y="434.21">DependencyNotRe&#8230;</text></g>
+message: waiting for catalog (Error)</title><polygon class="hex" points="231.19,356.93 279.69,384.93 279.69,440.93 231.19,468.93 182.69,440.93 182.69,384.93"/><text class="name" x="231.19" y="398.09">cart</text><text class="phase" x="231.19" y="413.77">Blocked</text><text class="reason"><tspan x="231.19" y="424.97">Dependency</tspan><tspan x="231.19" y="434.49">NotReady</tspan></text></g>
 <g class="comb phase-Disabled disabled" data-name="newsletter" data-id="shop/newsletter" data-phase="Disabled"><title>shop/newsletter
 namespace: shop
 class: MyApp::Comb::Newsletter

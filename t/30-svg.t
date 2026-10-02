@@ -596,6 +596,14 @@ sub reason_cr {
   };
 }
 
+# The rows of the reason of a cell: the tspans of its text.reason, else the
+# one text.
+sub reason_rows {
+  my ( $node ) = @_;
+  my @spans = child( $node, 's:text[ '.has_class('reason').' ]/s:tspan' );
+  return [ map { $_->textContent } @spans ? @spans : child( $node, 's:text[ '.has_class('reason').' ]' ) ];
+}
+
 subtest 'reason line' => sub {
   my $xpc = picture( [
     reason_cr( 'ok',       'Running', 'DeployFailed' ),
@@ -620,9 +628,9 @@ subtest 'reason line' => sub {
   is( $has->('failed'), 1, 'not Running with a reason: one text.reason' );
   is( line( comb( $xpc, 'failed' ), 'reason' ), 'DeployFailed', 'the reason as text' );
   is( line( comb( $xpc, 'sixteen' ), 'reason' ), 'ExactlySixteenCh', 'sixteen characters fit' );
-  is( line( comb( $xpc, 'config' ), 'reason' ), "MissingPrerequi\x{2026}", 'a longer reason is cut with an ellipsis' );
+  is_deeply( reason_rows( comb( $xpc, 'config' ) ), [ 'Missing', 'Prerequisites' ], 'a longer reason is broken into two lines, whole' );
   is( line( comb( $xpc, 'starting' ), 'reason' ), 'ImagePull', 'an Unknown cell says why too' );
-  is( line( comb( $xpc, 'off' ), 'reason' ), 'disabled by spe'."\x{2026}", 'Disabled: the message stands in' );
+  is_deeply( reason_rows( comb( $xpc, 'off' ) ), [ 'disabled by', 'spec.enabled' ], 'Disabled: the message stands in, on two lines' );
   ok( classes( comb( $xpc, 'off' ) )->{disabled}, 'in a cell that is muted as a whole' );
   ok( !( grep { /reason|DeployFailed|Deployed/ } @{ tooltip( comb( $xpc, 'failed' ) ) } ),
     'the tooltip does not gain the reason' );
@@ -636,8 +644,9 @@ subtest 'reason line' => sub {
   for my $name (qw( failed waiting off )) {
     my $cell = comb( $xpc, $name );
     my ( $x ) = centre($cell);
-    is( $_->getAttribute('x') + 0, $x + 0, $name.': line centred on the cell' ) for child( $cell, 's:text[@x]' );
-    is( count( $cell, 's:text/*' ), 0, $name.': no element inside a text' );
+    is( $_->getAttribute('x') + 0, $x + 0, $name.': line centred on the cell' )
+      for child( $cell, 's:text[@x] | s:text/s:tspan' );
+    is( count( $cell, 's:text/*' ), $name eq 'off' ? 2 : 0, $name.': an element inside a text only for a second reason line' );
   }
 
   # Cells without a reason line sit where they always sat: name and phase
@@ -658,7 +667,8 @@ subtest 'reason line' => sub {
 
 subtest 'reason line: inside the hexagon' => sub {
   my @names   = qw( db gpu-operator nvidia-device-plugin web-frontend-with-a-long-name averyveryverylongname );
-  my @reasons = ( 'Deployed', 'MissingPrerequisites', 'W' x 40 );
+  my @reasons = ( 'Deployed', 'MissingPrerequisites', 'UpstreamEndpointsMissing',
+    'deploy failed: timeout while waiting for rollout', 'W' x 40 );
   my ( @combs, $n );
   for my $name (@names) {
     for my $reason (@reasons) {
@@ -671,18 +681,25 @@ subtest 'reason line: inside the hexagon' => sub {
   }
   for my $size ( 20, $SIZE, 90 ) {
     my $xpc = picture( \@combs, size => $size );
-    my %lines;
+    my ( %lines, %shape );
     for my $cell ( combs($xpc) ) {
       my @lines = cell_lines( $cell, $size );
       my $id    = $cell->getAttribute('data-id');
       lines_fit( $cell, $size, 'size '.$size.' '.$id );
-      my ( $reason ) = grep { $_->{class} eq 'reason' } @lines;
+      my @reason = grep { $_->{class} eq 'reason' } @lines;
       $lines{ scalar @lines }++;
-      cmp_ok( $reason->{at} + 0.25 * $reason->{font}, '<=', $size / 2 + 0.02,
-        'size '.$size.' '.$id.': the reason line is inside the full-width band' );
-      cmp_ok( length $reason->{text}, '<=', 16, 'size '.$size.' '.$id.': sixteen characters at most' );
+      $shape{ join ' ', map { $_->{class} } @lines }++;
+      cmp_ok( $reason[0]{at} + 0.25 * $reason[0]{font}, '<=', $size / 2 + 0.02,
+        'size '.$size.' '.$id.': the first reason line is inside the full-width band' );
+      cmp_ok( length $_->{text}, '<=', 16, 'size '.$size.' '.$id.': sixteen characters at most' ) for @reason;
+      cmp_ok( $lines[0]{at} - 0.75 * $lines[0]{font}, '>=', -0.55 * $size - 0.02, 'size '.$size.' '.$id.': the block starts inside' );
+      cmp_ok( $lines[-1]{at} + 0.25 * $lines[-1]{font}, '<=', 0.55 * $size + 0.02, 'size '.$size.' '.$id.': the block ends inside' );
     }
-    is_deeply( [ sort keys %lines ], [ 3, 4, 5 ], 'size '.$size.': cells of three, four and five lines' );
+    is_deeply( [ sort keys %lines ], [ 3, 4, 5 ], 'size '.$size.': cells of three, four and five lines, never six' );
+    is_deeply( [ sort keys %shape ], [
+      'name name phase reason', 'name name phase reason reason', 'name name phase reason upstream',
+      'name phase reason', 'name phase reason reason', 'name phase reason reason upstream', 'name phase reason upstream'
+    ], 'size '.$size.': every line-count case, and no second reason line between a name on two lines and an upstream line' );
   }
 
   # The worst case by name: a wrapped name, phase, reason and upstream line.
@@ -692,8 +709,8 @@ subtest 'reason line: inside the hexagon' => sub {
   my @lines = cell_lines($worst);
   is_deeply( [ map { $_->{class} } @lines ], [qw( name name phase reason upstream )], 'five lines' );
   is( $lines[3]{text}, ( 'W' x 15 )."\x{2026}", 'the reason cut to sixteen' );
-  cmp_ok( $lines[0]{at} - 0.75 * $lines[0]{font}, '>=', -0.55 * $SIZE, 'the first name line starts inside' );
-  cmp_ok( $lines[-1]{at} + 0.25 * $lines[-1]{font}, '<=', 0.55 * $SIZE, 'the upstream line ends inside' );
+  cmp_ok( $lines[0]{at} - 0.75 * $lines[0]{font}, '>=', -0.55 * $SIZE - 0.02, 'the first name line starts inside' );
+  cmp_ok( $lines[-1]{at} + 0.25 * $lines[-1]{font}, '<=', 0.55 * $SIZE + 0.02, 'the upstream line ends inside' );
 
   # The same cells without a reason are not moved by all this.
   my @plain = map { reason_cr( $_, 'Pending', undef, 'prod' ) } @names;
@@ -709,6 +726,183 @@ subtest 'reason line: inside the hexagon' => sub {
     is( sprintf( '%.2f', $at[0] ), sprintf( '%.2f', -0.17 * $SIZE - $step / 2 ),
       $name.' without a reason: starts where it did' );
   }
+};
+
+subtest 'reason line: two lines before cutting' => sub {
+  my $long  = 'deploy failed: timeout while waiting for rollout';
+  my $cut   = sub { $_[0]."\x{2026}" };
+  my @cells = (
+    # [ name, upstream context ], then reason => the rows expected
+    [ [ 'db' ], [
+      MissingPrerequisites     => [ 'Missing', 'Prerequisites' ],
+      UpstreamUnreachable      => [ 'Upstream', 'Unreachable' ],
+      UpstreamNotRunning       => [ 'Upstream', 'NotRunning' ],
+      DependenciesFailed       => [ 'Dependencies', 'Failed' ],
+      UpstreamEndpointsMissing => [ 'Upstream', 'EndpointsMissing' ],
+      $long                    => [ 'deploy failed:', $cut->('timeout while w') ],
+      'W' x 40                 => [ $cut->( 'W' x 15 ) ],
+      DeployFailed             => ['DeployFailed'],
+      ExactlySixteenCh         => ['ExactlySixteenCh'],
+      ReplicaSet2Unavailable   => [ 'ReplicaSet2', 'Unavailable' ],
+      "crash loop \t  back off again" => [ 'crash loop', 'back off again' ],
+      ABCDEFGHIJKLMNOPQRSTUVWXYZ      => [ $cut->('ABCDEFGHIJKLMNO') ],
+      'Averyveryverylongprefix Tail'  => [ $cut->('Averyveryverylo') ],
+      RolloutInProgress               => [ 'RolloutIn', 'Progress' ],
+      "d\x{e9}ploiement\x{c9}chou\x{e9}Partout" => [ "d\x{e9}ploiement", "\x{c9}chou\x{e9}Partout" ]
+    ] ],
+    # Under a name on two lines the second reason line holds 14 characters.
+    [ [ 'gpu-operator' ], [
+      MissingPrerequisites     => [ 'Missing', 'Prerequisites' ],
+      UpstreamUnreachable      => [ 'Upstream', 'Unreachable' ],
+      UpstreamNotRunning       => [ 'Upstream', 'NotRunning' ],
+      DependenciesFailed       => [ 'Dependencies', 'Failed' ],
+      UpstreamEndpointsMissing => [ 'Upstream', $cut->('EndpointsMiss') ],
+      $long                    => [ 'deploy failed:', $cut->('timeout while') ],
+      'W' x 40                 => [ $cut->( 'W' x 15 ) ],
+      DeployFailed             => ['DeployFailed']
+    ] ],
+    # Under a name in the small font, 15.
+    [ [ 'nvidia-device-plugin' ], [
+      MissingPrerequisites     => [ 'Missing', 'Prerequisites' ],
+      UpstreamEndpointsMissing => [ 'Upstream', $cut->('EndpointsMissi') ],
+      'W' x 40                 => [ $cut->( 'W' x 15 ) ],
+      DeployFailed             => ['DeployFailed']
+    ] ],
+    [ [ 'db', 'prod' ], [
+      MissingPrerequisites     => [ 'Missing', 'Prerequisites' ],
+      UpstreamEndpointsMissing => [ 'Upstream', 'EndpointsMissing' ],
+      $long                    => [ 'deploy failed:', $cut->('timeout while w') ],
+      'W' x 40                 => [ $cut->( 'W' x 15 ) ],
+      DeployFailed             => ['DeployFailed']
+    ] ],
+    # No room for a sixth line: the reason stays on one, cut.
+    [ [ 'gpu-operator', 'prod' ], [
+      MissingPrerequisites => [ $cut->('MissingPrerequi') ],
+      $long                => [ $cut->('deploy failed: ') ],
+      DeployFailed         => ['DeployFailed']
+    ] ],
+    [ [ 'nvidia-device-plugin', 'prod' ], [
+      MissingPrerequisites => [ $cut->('MissingPrerequi') ],
+      DeployFailed         => ['DeployFailed']
+    ] ]
+  );
+
+  my ( @combs, @expect, $n );
+  for my $case (@cells) {
+    my ( $cell, $reasons ) = @$case;
+    my @pairs = @$reasons;
+    while ( my ( $reason, $rows ) = splice @pairs, 0, 2 ) {
+      my $cr = reason_cr( $cell->[0], $cell->[1] ? 'Pending' : 'Error', $reason, $cell->[1] );
+      $cr->{metadata}{namespace} = 'n'.++$n;
+      push @combs, $cr;
+      my $short = $reason =~ /\A[\x20-\x7E]{1,24}\z/ ? $reason : 'reason '.$n;
+      push @expect, {
+        id     => 'n'.$n.'/'.$cell->[0],
+        rows   => $rows,
+        reason => $reason,
+        label  => $cell->[0].( $cell->[1] ? ', borrowed' : '' ).', '.$short
+      };
+    }
+  }
+
+  for my $size ( 20, $SIZE, 90 ) {
+    my $xpc = picture( \@combs, size => $size );
+    for my $expect (@expect) {
+      my $cell  = comb_by_id( $xpc, $expect->{id} );
+      my $label = 'size '.$size.' '.$expect->{label};
+      is_deeply( reason_rows($cell), $expect->{rows}, $label.': the rows of the reason' );
+      lines_fit( $cell, $size, $label );
+      next unless $size == $SIZE;
+
+      my @lines  = cell_lines($cell);
+      my @reason = grep { $_->{class} eq 'reason' } @lines;
+      my @names  = grep { $_->{class} eq 'name' } @lines;
+      my ( $phase ) = grep { $_->{class} eq 'phase' } @lines;
+      is( count( $cell, 's:text[ '.has_class('reason').' ]' ), 1, $label.': one text.reason' );
+      cmp_ok( scalar @lines, '<=', 5, $label.': five lines at most' );
+      cmp_ok( $lines[0]{at} - 0.75 * $lines[0]{font}, '>=', -0.55 * $SIZE - 0.02, $label.': the block starts inside' );
+      cmp_ok( $lines[-1]{at} + 0.25 * $lines[-1]{font}, '<=', 0.55 * $SIZE + 0.02, $label.': the block ends inside' );
+
+      my ( $text ) = child( $cell, 's:text[ '.has_class('reason').' ]' );
+      my ( $x )    = centre($cell);
+      if ( @reason == 2 ) {
+        ok( !$text->hasAttribute('x') && !$text->hasAttribute('y'), $label.': the text itself is not placed' );
+        is( count( $text, 's:tspan[@x and @y]' ), 2, $label.': two tspan, each placed' );
+        is( count( $text, '*[not(self::s:tspan)] | s:tspan/*' ), 0, $label.': and nothing else' );
+        is( $_->getAttribute('x') + 0, $x + 0, $label.': line centred on the cell' ) for child( $text, 's:tspan' );
+        is( sprintf( '%.2f', $reason[1]{at} - $reason[0]{at} ), sprintf( '%.2f', 0.17 * $SIZE ),
+          $label.': the second line 0.17 of the size below the first' );
+        is( line( $cell, 'reason' ), join( '', @{ $expect->{rows} } ), $label.': the text content is what is shown' );
+        ( my $whole = $expect->{reason} ) =~ s/\s+//g;
+        ( my $shown = line( $cell, 'reason' ) ) =~ s/\s+//g;
+        is( $shown, $whole, $label.': and that is the whole reason' ) unless $expect->{rows}[1] =~ /\x{2026}\z/;
+      }
+      else {
+        is( count( $text, '*' ), 0, $label.': one line, no tspan' );
+        is( $text->getAttribute('x') + 0, $x + 0, $label.': line centred on the cell' );
+      }
+
+      # A cell with a reason and more than three lines: the phase has more
+      # air above it than the name lines have between them -- 0.28 of the
+      # size, but for two name lines in the name font over a reason and an
+      # upstream line, where the band leaves 0.25.
+      next unless @lines > 3;
+      my $air  = $phase->{at} - $names[-1]{at};
+      my $full = @names == 2 && $lines[-1]{class} eq 'upstream' && $names[0]{font} > 0.2 * $SIZE;
+      cmp_ok( $air, '>', $names[1]{at} - $names[0]{at} + 0.3, $label.': the phase is further from the name than a name line' )
+        if @names > 1;
+      is( sprintf( '%.2f', $air ), sprintf( '%.2f', ( $full ? 0.25 : 0.28 ) * $SIZE ),
+        $label.': '.( $full ? 0.25 : 0.28 ).' of the size' );
+    }
+  }
+
+  # A cell that is not tight is where it was: one name line, phase and a
+  # reason that fits; the same holds for every cell without a reason line.
+  my $at = sub { [ map { sprintf '%.2f', $_->{at} / $SIZE } cell_lines( $_[0] ) ] };
+  my $xpc = picture( [
+    reason_cr( 'api', 'Error', 'DeployFailed' ),
+    reason_cr( 'gpu-operator', 'Running', 'MissingPrerequisites' ),
+    reason_cr( 'gpu-scheduler', 'Running', 'MissingPrerequisites', 'prod' ),
+    reason_cr( 'web', 'Error', 'MissingPrerequisites' )
+  ] );
+  is_deeply( $at->( comb( $xpc, 'api' ) ), [qw( -0.17 0.13 0.38 )], 'three lines: where they were' );
+  is_deeply( $at->( comb( $xpc, 'gpu-operator' ) ), [qw( -0.19 0.05 0.35 )], 'a wrapped Running name: where it was' );
+  is_deeply( $at->( comb( $xpc, 'gpu-scheduler' ) ), [qw( -0.29 -0.05 0.25 0.50 )], 'borrowed as well: where it was' );
+  my @web  = map { $_->{at} / $SIZE } cell_lines( comb( $xpc, 'web' ) );
+  my @want = ( -0.265, 0.015, 0.215, 0.385 );
+  ok( !( grep { abs( $web[$_] - $want[$_] ) > 0.001 } 0 .. 3 ) && @web == 4,
+    'a reason on two lines: the block centred as a whole' ) or diag join ' ', @web;
+
+  # Hostile reasons with a break point: each line is escaped on its own.
+  my @evil = (
+    '<b>&"\'</b> <script>x</script>',
+    '</text>okFine<script>alert(1)</script>',
+    "&amp;<i>\x{e9}t\x{e9} ]]> <!--\x{1F600}--> &lt;"
+  );
+  my $combs = [ map { reason_cr( 'evil'.$_, 'Error', $evil[$_] ) } 0 .. $#evil ];
+  my $svg   = $SVG->new( combs => $combs )->render;
+  my $safe;
+  is( eval { $safe = parse($svg); 1 }, 1, 'hostile reasons: well-formed XML' ) or diag $@;
+  unlike( $svg, qr/<script|<b>|<i>|<!--/i, 'no literal tag or comment in the bytes' );
+  unlike( $svg, qr/[^\x00-\x7F]/, 'plain ASCII output' );
+  is( count( $safe, '//*[local-name()="script" or local-name()="b" or local-name()="i"] | //comment()' ), 0,
+    'no element and no comment from a reason' );
+  is_deeply( reason_rows( comb( $safe, 'evil0' ) ), [ '<b>&"\'</b>', "<script>x</scri\x{2026}" ],
+    'broken at the space, both lines text' );
+  is_deeply( reason_rows( comb( $safe, 'evil1' ) ), [ '</text>ok', "Fine<script>ale\x{2026}" ],
+    'broken before the capital, both lines text' );
+  is_deeply( reason_rows( comb( $safe, 'evil2' ) ), [ "&amp;<i>\x{e9}t\x{e9} ]]>", "<!--\x{1F600}--> &lt;" ],
+    'entities, non-ASCII and a comment round-trip as text' );
+  for my $name (qw( evil0 evil1 evil2 )) {
+    my $cell = comb( $safe, $name );
+    is( count( $cell, '*[not(self::s:title or self::s:polygon or self::s:text)]' ), 0, $name.': cell has only its own children' );
+    is( count( $cell, 's:text/*[not(self::s:tspan)] | s:text/s:tspan/*' ), 0, $name.': texts hold tspan and text only' );
+  }
+
+  my @args = ( combs => \@combs, layout => 'packed', blink => ['Error'] );
+  is( $SVG->new(@args)->render, $SVG->new(@args)->render, 'wrapped reasons: same bytes' );
+  is_deeply( reason_rows( comb( picture( [ reason_cr( 'db', 'Error', 'MissingPrerequisites' ) ], size => 20 ), 'db' ) ),
+    [ 'Missing', 'Prerequisites' ], 'the break does not depend on size' );
 };
 
 subtest 'reason line: escaped, only when needed, stable' => sub {
@@ -729,8 +923,9 @@ subtest 'reason line: escaped, only when needed, stable' => sub {
 
   my $hostile = picture('hostile');
   my $cell    = comb( $hostile, '</svg><script>alert(1)</script>' );
-  is( line( $cell, 'reason' ), "msg \"quoted\" & \x{2026}", 'hostile fixture: the message stands in, as text' );
-  is_deeply( [ map { $_->{class} } cell_lines($cell) ], [qw( name phase reason upstream )], 'above its upstream line' );
+  is_deeply( reason_rows($cell), [ 'msg "quoted" &', "<b>bold</b> 'x'" ],
+    'hostile fixture: the message stands in, as text, broken at a space' );
+  is_deeply( [ map { $_->{class} } cell_lines($cell) ], [qw( name phase reason reason upstream )], 'above its upstream line' );
 
   # A picture without a reason line carries nothing of this card.
   my $running = [
@@ -786,7 +981,9 @@ subtest 'escaping' => sub {
     'which has neither the class nor the line' );
   is( count( $idle, '*[not(self::s:title or self::s:polygon or self::s:text)]' ), 0, 'and only its own children' );
   is( count( $evil, '*[not(self::s:title or self::s:polygon or self::s:text)]' ), 0, 'cell has only its own children' );
-  is( count( $evil, 's:text/*' ), 0, 'no element inside any text' );
+  is( count( $evil, 's:text/*[not(self::s:tspan)]' ), 0, 'no element but a tspan inside any text' );
+  is( count( $evil, 's:text/s:tspan' ), 2, 'and of those the two lines of its reason' );
+  is( count( $evil, 's:text/s:tspan/*' ), 0, 'with nothing but text inside' );
   like( line( $evil, 'upstream' ), qr/\Afrom ctx">/, 'upstream line is text' );
 
   my @heads = $xpc->findnodes('//s:g[ '.has_class('group').' ]');
@@ -873,7 +1070,7 @@ subtest 'theme' => sub {
   like( $css, qr/--comb-pending:#bf8700/, 'other phases keep their default' );
 
   my ( $l, $d ) = modes($default);
-  is_deeply( [ $l->{'--comb-stopped'}, $d->{'--comb-stopped'} ], [ '#1b7c83', '#39c5cf' ], 'default Stopped: teal, light and dark' );
+  is_deeply( [ $l->{'--comb-stopped'}, $d->{'--comb-stopped'} ], [ '#0891b2', '#39c5cf' ], 'default Stopped: cyan, light and dark' );
   is_deeply( [ $l->{'--comb-notdeployed'}, $d->{'--comb-notdeployed'} ], [ '#0969da', '#58a6ff' ],
     'default NotDeployed: blue, light and dark' );
   for my $phase (qw( Stopped NotDeployed )) {
