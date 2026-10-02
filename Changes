@@ -5,3 +5,6 @@ Revision history for Kubernetes-Comb-SVG
  - First release. Renders a set of Kubernetes::Comb custom resources as one
    self-contained SVG honeycomb: one hexagon per Comb, coloured by phase,
    with dependency edges and upstream (borrowed) marking.
+ - Kubernetes::Comb::SVG::Cell reads a Comb custom resource (hash or TO_JSON
+   object, array or List) into a cell, identified by namespace/name, with
+   spec.dependsOn resolved into dependencies and missing.

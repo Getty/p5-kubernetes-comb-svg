@@ -59,6 +59,14 @@ Phases known to `Kubernetes::Comb`: `Running`, `Pending`, `Blocked`,
 `NeedsConfig`, `Disabled`, `Error`. Any other string is drawn as `Unknown`
 with the original text in the tooltip — never an exception.
 
+**Identity.** A cell is identified by `namespace/name` (by `name` alone when
+the CR has no namespace), so `kubectl get combs -A` may carry the same name in
+two namespaces. A `spec.dependsOn` entry is `name` or `namespace/name`, as in
+`Kubernetes::Comb`: a bare `name` means the Comb of that name in the
+dependent's own namespace, else the only Comb of that name in the input;
+anything that matches no cell, or more than one, is a missing dependency. Of
+two CRs with the same identity the first is kept.
+
 ## 4. Building blocks
 
 | Module | Job |
