@@ -1,0 +1,22 @@
+---
+claimed_at: 2026-10-02T02:37:41Z
+claimed_by: comb-svg-cards
+class: standard
+completed: 2026-10-02T02:37:41Z
+created: 2026-10-02T01:43:56Z
+id: 4
+priority: medium
+started: 2026-10-02T02:33:47Z
+status: done
+tags:
+- bin
+- cli
+title: 'bin/comb-svg: JSON in, SVG out'
+updated: 2026-10-02T02:37:41Z
+---
+
+SPEC §9. Reads a List, an array of CRs or one CR from a file argument or stdin, prints the SVG. Options --title, --group-label, --columns, --size, --no-edges, --no-legend. Bad JSON or an element without metadata.name: message on stderr, exit 1. Carries its own $VERSION. Test runs the script on a fixture. Depends on the SVG card.
+
+2026-10-02 02:36 Done: bin/comb-svg (own $VERSION 0.001, PODNAME/ABSTRACT, POD skeleton) + t/40-cli.t (171 tests) + t/data/cli/{bad,scalar,single,unicode}.json; cpanfile: JSON::MaybeXS and Path::Tiny moved to runtime requires, Getopt::Long added, IPC::Open3 for tests. Decisions: (1) one exit code 1 for usage and data errors alike, 0 for --help/--version (both to stdout); (2) JSON::MaybeXS + Path::Tiny per house rule rather than core JSON::PP, so both are now runtime deps; (3) --columns/--size validated in the script (positive integer / positive plain decimal, no exponent) before the Moo constructor, so no type-constraint trace; (4) argv decoded as UTF-8 so --title/--group-label carry non-ASCII; (5) more than one file argument is a usage error; empty stdin is 'invalid JSON'; (6) --edges/--legend exist as the negatable positive forms; no option abbreviations; (7) library errors are printed without 'Class->method: ' prefix and without ' at ... line N'. Packaging: @Basic ExecDir picks up bin/ by default, dist.ini needs no line. examples/demo.svg untouched (picture unchanged; examples/ does not exist yet in this tree). Verified: prove -lr t/ -> Files=5, Tests=234, PASS. POD of bin/comb-svg is a skeleton for the pod-writer.
+
+2026-10-02 02:37 Committed as 822d1c3
