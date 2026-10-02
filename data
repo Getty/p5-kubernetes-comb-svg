@@ -1,0 +1,78 @@
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":1,"ts":"2026-10-02T01:43:55Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":2,"ts":"2026-10-02T01:43:55Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":3,"ts":"2026-10-02T01:43:56Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":4,"ts":"2026-10-02T01:43:56Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":5,"ts":"2026-10-02T01:43:56Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":6,"ts":"2026-10-02T01:43:57Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":1,"ts":"2026-10-02T02:04:34Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":1,"ts":"2026-10-02T02:08:22Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":1,"ts":"2026-10-02T02:08:26Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":1,"ts":"2026-10-02T02:08:30Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":1,"ts":"2026-10-02T02:09:18Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":1,"ts":"2026-10-02T02:09:18Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":1,"ts":"2026-10-02T02:11:02Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"review","task_id":1,"ts":"2026-10-02T02:11:46Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"done","task_id":1,"ts":"2026-10-02T02:11:47Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":2,"ts":"2026-10-02T02:12:03Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":2,"ts":"2026-10-02T02:15:18Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":2,"ts":"2026-10-02T02:15:19Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":2,"ts":"2026-10-02T02:15:19Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"review","task_id":2,"ts":"2026-10-02T02:16:11Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"done","task_id":2,"ts":"2026-10-02T02:16:12Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":3,"ts":"2026-10-02T02:16:40Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":3,"ts":"2026-10-02T02:22:48Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":3,"ts":"2026-10-02T02:22:51Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":3,"ts":"2026-10-02T02:22:55Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":3,"ts":"2026-10-02T02:24:41Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":3,"ts":"2026-10-02T02:24:41Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":3,"ts":"2026-10-02T02:28:09Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"review","task_id":3,"ts":"2026-10-02T02:28:15Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":3,"ts":"2026-10-02T02:28:45Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":3,"ts":"2026-10-02T02:32:51Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":3,"ts":"2026-10-02T02:32:51Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"review","task_id":3,"ts":"2026-10-02T02:33:38Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"done","task_id":3,"ts":"2026-10-02T02:33:38Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":4,"ts":"2026-10-02T02:33:47Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":4,"ts":"2026-10-02T02:36:54Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"review","task_id":4,"ts":"2026-10-02T02:37:41Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"done","task_id":4,"ts":"2026-10-02T02:37:41Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":5,"ts":"2026-10-02T02:37:49Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":5,"ts":"2026-10-02T02:42:17Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":5,"ts":"2026-10-02T02:43:11Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"in-progress","task_id":5,"ts":"2026-10-02T02:43:11Z"}
+{"action":"handoff","agent":"comb-svg-cards","detail":"review","task_id":5,"ts":"2026-10-02T02:44:49Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"review","task_id":5,"ts":"2026-10-02T02:45:50Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"done","task_id":5,"ts":"2026-10-02T02:45:50Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"in-progress","task_id":6,"ts":"2026-10-02T02:45:59Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"review","task_id":6,"ts":"2026-10-02T02:51:14Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"review","task_id":6,"ts":"2026-10-02T02:51:17Z"}
+{"action":"edit","agent":"comb-svg-cards","detail":"review","task_id":6,"ts":"2026-10-02T02:51:40Z"}
+{"action":"move","agent":"comb-svg-cards","detail":"done","task_id":6,"ts":"2026-10-02T02:51:41Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":7,"ts":"2026-10-02T04:19:45Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":8,"ts":"2026-10-02T04:19:46Z"}
+{"action":"move","agent":"monitor-layout-theme","detail":"in-progress","task_id":7,"ts":"2026-10-02T04:20:30Z"}
+{"action":"edit","agent":"monitor-layout-theme","detail":"in-progress","task_id":7,"ts":"2026-10-02T04:27:07Z"}
+{"action":"handoff","agent":"monitor-layout-theme","detail":"review","task_id":7,"ts":"2026-10-02T04:27:15Z"}
+{"action":"move","agent":"monitor-layout-theme","detail":"done","task_id":7,"ts":"2026-10-02T04:28:25Z"}
+{"action":"edit","agent":"monitor-layout-theme","detail":"done","task_id":7,"ts":"2026-10-02T04:28:27Z"}
+{"action":"move","agent":"monitor-layout-theme","detail":"in-progress","task_id":8,"ts":"2026-10-02T04:28:35Z"}
+{"action":"edit","agent":"monitor-layout-theme","detail":"in-progress","task_id":8,"ts":"2026-10-02T04:33:29Z"}
+{"action":"edit","agent":"monitor-layout-theme","detail":"in-progress","task_id":8,"ts":"2026-10-02T04:33:32Z"}
+{"action":"handoff","agent":"monitor-layout-theme","detail":"review","task_id":8,"ts":"2026-10-02T04:33:35Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":9,"ts":"2026-10-02T04:35:24Z"}
+{"action":"edit","agent":"monitor-layout-theme","detail":"review","task_id":8,"ts":"2026-10-02T04:35:31Z"}
+{"action":"move","agent":"monitor-layout-theme","detail":"done","task_id":8,"ts":"2026-10-02T04:38:21Z"}
+{"action":"edit","agent":"monitor-layout-theme","detail":"done","task_id":8,"ts":"2026-10-02T04:38:22Z"}
+{"action":"edit","agent":"Torsten Raudssus","detail":"backlog","task_id":9,"ts":"2026-10-02T05:07:48Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":10,"ts":"2026-10-02T05:07:48Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":11,"ts":"2026-10-02T05:07:48Z"}
+{"action":"create","agent":"Torsten Raudssus","detail":"backlog","task_id":12,"ts":"2026-10-02T05:07:49Z"}
+{"action":"move","agent":"cards-9-12","detail":"in-progress","task_id":9,"ts":"2026-10-02T05:30:56Z"}
+{"action":"edit","agent":"cards-9-12","detail":"in-progress","task_id":9,"ts":"2026-10-02T05:34:37Z"}
+{"action":"handoff","agent":"cards-9-12","detail":"review","task_id":9,"ts":"2026-10-02T05:34:39Z"}
+{"action":"edit","agent":"cards-9-12","detail":"review","task_id":9,"ts":"2026-10-02T05:35:43Z"}
+{"action":"move","agent":"cards-9-12","detail":"done","task_id":9,"ts":"2026-10-02T05:35:43Z"}
+{"action":"edit","agent":"Torsten Raudssus","detail":"done","task_id":9,"ts":"2026-10-02T05:35:49Z"}
+{"action":"move","agent":"cards-9-12","detail":"in-progress","task_id":10,"ts":"2026-10-02T05:36:11Z"}
+{"action":"edit","agent":"cards-9-12","detail":"in-progress","task_id":10,"ts":"2026-10-02T05:36:44Z"}
+{"action":"edit","agent":"cards-9-12","detail":"in-progress","task_id":10,"ts":"2026-10-02T05:38:26Z"}
