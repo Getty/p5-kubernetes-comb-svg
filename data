@@ -1,0 +1,24 @@
+---
+class: standard
+completed: 2026-10-02T05:39:38Z
+created: 2026-10-02T05:07:48Z
+id: 10
+priority: high
+started: 2026-10-02T05:36:11Z
+status: done
+tags:
+- lib
+- cell
+title: Phases NotDeployed and Stopped are drawn as Unknown
+updated: 2026-10-02T05:39:49Z
+---
+
+Kubernetes::Comb's CombStatus knows the phases NotDeployed and Stopped; the known-phase list here has only six, so both fall to Unknown and look like a broken Comb. Add both as known phases with their own colour, legend entry, theme key and blink name; update SPEC §3 and §6 (needs the maintainer's ok for the colours). Check lib/Kubernetes/Comb.pm in ../p5-kubernetes-comb for the full list of phases the code can write, and name any further one found. Found by the first consumer (citiai-core, 2026-10-02).
+
+2026-10-02 05:36 Worker started: no test/fixture uses Stopped or NotDeployed as its example of an unknown phase (they use Hibernating, Frobnicating, Bogus).
+
+2026-10-02 05:38 Also found: t/50-demo.t asserted 'the demo shows a Comb of every known phase'. With no Stopped/NotDeployed Comb in examples/demo.json (coordinator's decision) that claim cannot hold; replaced by 'the demo shows the six phases Running..Error' plus 'every phase in the demo is a known one'. Maintainer may prefer two demo Combs instead.
+
+2026-10-02 05:38 Done: Stopped and NotDeployed are known phases (Cell->known_phases, CombStatus order), default colours teal/blue in SVG->_default_colours; POD phase lists in Cell.pm and SVG.pm updated (bin/comb-svg lists no phases). Fixture t/data/svg/phases.json gained both; tests extended in t/10, t/30, t/40, t/50. examples/demo.svg and monitor.svg regenerated, style block only. Verified: prove -lr t/ green, 7 files, 466 tests, none skipped.
+
+2026-10-02 05:39 Committed as 49c482f
