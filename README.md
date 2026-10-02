@@ -3,11 +3,11 @@
 Render [Kubernetes::Comb](https://metacpan.org/pod/Kubernetes::Comb) custom
 resources as an SVG honeycomb.
 
-![Honeycomb of fifteen Combs in two groups, coloured by phase, with dependency edges](examples/demo.svg)
+![Honeycomb of seventeen Combs in two groups, coloured by phase, with dependency edges](examples/demo.svg)
 
 The same Combs with `layout => 'packed'`, the status monitor for a wall screen:
 
-![The same fifteen Combs packed into one compact honeycomb, without edges](examples/monitor.svg)
+![The same seventeen Combs packed into one compact honeycomb, without edges](examples/monitor.svg)
 
 Both pictures are rendered from `examples/demo.json` by `examples/demo.pl`.
 

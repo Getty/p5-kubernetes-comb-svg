@@ -461,6 +461,57 @@
         ],
         "phase": "Running"
       }
+    },
+    {
+      "kind": "Comb",
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/part-of": "shop"
+        },
+        "name": "reports",
+        "namespace": "shop"
+      },
+      "spec": {
+        "class": "MyApp::Comb::Reports",
+        "dependsOn": [
+          "orders"
+        ]
+      },
+      "status": {
+        "conditions": [
+          {
+            "message": "stopped",
+            "reason": "Stopped",
+            "status": "False",
+            "type": "Ready"
+          }
+        ],
+        "phase": "Stopped"
+      }
+    },
+    {
+      "kind": "Comb",
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/part-of": "shop"
+        },
+        "name": "loyalty",
+        "namespace": "shop"
+      },
+      "spec": {
+        "class": "MyApp::Comb::Loyalty"
+      },
+      "status": {
+        "conditions": [
+          {
+            "message": "not deployed",
+            "reason": "NotDeployed",
+            "status": "False",
+            "type": "Ready"
+          }
+        ],
+        "phase": "NotDeployed"
+      }
     }
   ],
   "kind": "List"

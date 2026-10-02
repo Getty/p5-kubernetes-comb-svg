@@ -3,66 +3,37 @@ Revision history for Kubernetes-Comb-SVG
 {{$NEXT}}
 
  - First release. Renders a set of Kubernetes::Comb custom resources as one
-   self-contained SVG honeycomb: one hexagon per Comb, coloured by phase,
-   with dependency edges and upstream (borrowed) marking.
- - Kubernetes::Comb::SVG::Cell reads a Comb custom resource (hash or TO_JSON
-   object, array or List) into a cell, identified by namespace/name, with
-   spec.dependsOn resolved into dependencies and missing.
- - Kubernetes::Comb::SVG::Layout places cells in groups (by name, unnamed
-   last), in rows by dependency depth over all cells, on a pointy-top
-   honeycomb that wraps at the column limit; dependency cycles share a row.
- - Kubernetes::Comb::SVG->render draws the honeycomb: phase-coloured hexagons,
-   borrowed and disabled states, dependency edges routed through the label-free
-   corners (cycles in a row bow in opposite directions) and starting at a small
-   dot just inside the dependent's outline, legend, link callback, light and
-   dark colour schemes.
- - theme sets phase colours and the surfaces of the picture (bg, fg, muted,
-   border, edge); a value is one colour or { light => ..., dark => ... }, and
-   a bad colour falls back to the default of its mode. The colours are CSS
-   custom properties (--comb-*), documented with the classes as the styling
-   interface.
- - blink and blink_seconds make cells of the named phases pulse through a CSS
-   animation (comb-blink, no script); with prefers-reduced-motion they get a
-   thicker outline instead. Without blink the SVG carries no animation CSS.
- - examples/demo.pl renders examples/demo.json (fifteen Combs in two groups,
-   every phase, a borrowed and a disabled Comb) to examples/demo.svg, the
-   picture the README shows; a test fails when the committed picture is stale.
+   self-contained SVG honeycomb: one hexagon per Comb, coloured by phase. No
+   script, no external reference, the same input always gives the same bytes.
+ - Kubernetes::Comb::SVG->render draws the picture. Input is a list of Comb
+   custom resources (hashes or TO_JSON objects, an array or a List); nothing
+   is fetched from a cluster.
+ - Two layouts. layout => 'depth' (default): groups by a label, rows by
+   dependency depth, dependency edges from spec.dependsOn. layout => 'packed':
+   a status monitor, all Combs sorted by namespace/name in one compact
+   honeycomb that fits a screen; the grid comes from columns, else rows, else
+   aspect (default 16/9).
+ - A cell shows the name (broken into two lines after a hyphen, dot or
+   underscore before it is cut), the phase and, when the Comb is not Running,
+   the reason of its Ready condition. The tooltip carries the rest.
+ - Phases with a colour of their own: Running, Pending, Blocked, NeedsConfig,
+   Disabled, Error, Stopped, NotDeployed; anything else is Unknown.
+ - A Comb that borrows its service from an upstream (status.upstream recorded,
+   not unreachable, phase Running or Pending) is drawn with a dashed outline and the
+   upstream context.
+ - theme sets the phase colours and the surfaces of the picture; a value is
+   one colour or { light => ..., dark => ... }. The colours are CSS custom
+   properties (--comb-*) and, with the classes, the documented styling
+   interface. Light and dark colour schemes are built in.
+ - blink and blink_seconds make the cells of the named phases pulse through a
+   CSS animation; with prefers-reduced-motion they get a thicker outline
+   instead.
+ - Further options: title, group_label, size, edges, legend and a link
+   callback that makes cells clickable.
  - bin/comb-svg renders Comb custom resources from a JSON file or standard
-   input (a List, an array or one resource) to an SVG on standard output, with
-   --title, --group-label, --columns, --size, --no-edges, --no-legend,
-   --layout, --rows, --aspect, --edges, --color KEY=COLOUR or
-   KEY=LIGHT,DARK (repeatable), --blink and --blink-seconds. Bad
-   input or options give one line on standard error and exit status 1.
- - layout => 'packed' draws a status monitor: all Combs sorted by
-   namespace/name in one compact honeycomb that fits a screen. The grid comes
-   from columns, else rows, else aspect (default 16/9, measured on the whole
-   canvas); edges are off unless asked for. examples/monitor.svg shows it
-   (blinking for Error),
-   with a freshness test, and the README too.
- - A cell name that does not fit on one line is broken into two after a
-   hyphen, dot or underscore, in a smaller font when needed; only what fits
-   neither way is cut with an ellipsis. Names that fit are drawn as before.
- - Stopped and NotDeployed are known phases with their own colour (cyan,
-   blue), legend entry, theme key, --comb-stopped / --comb-notdeployed custom
-   property and blink name. The <style> block of every picture grows by these
-   two.
- - A cell that is not Running shows why: one small line under the phase, the
-   reason of its Ready condition (else of the first condition that is not
-   True), cut to the cell's width. A reason that says NotChecked or only
-   repeats the phase gives way to the first line of the condition's message.
-   Kubernetes::Comb::SVG::Cell has it as reason; the picture as text.reason,
-   with a .reason style rule only when a cell has the line. Running cells and
-   cells without a reason are drawn as before.
- - A cell is drawn as borrowed (dashed outline, upstream line) only when the
-   Comb really borrows: status.upstream recorded, not unreachable, and phase
-   Running or Pending. A NeedsConfig, Blocked, Disabled or Error Comb that
-   merely records an upstream is not marked. The tooltip names the upstream
-   class and context of every Comb that records one and says "(not
-   borrowing)" when the cell is not borrowed. Cell has upstream_recorded,
-   upstream_class and the class method borrowing_phases.
- - A reason too long for its line is broken into two, at a space or before a
-   capital inside a word, before it is cut; a cell with no room for a sixth
-   line of text keeps one cut line. In a cell with tight lines the phase sits
-   further from the name than the name lines from each other.
- - The default light colour of Stopped is #0891b2 (cyan), easier to tell from
-   Running.
+   input to an SVG on standard output, with the same options as flags.
+ - Kubernetes::Comb::SVG::Cell (a Comb read into a cell) and
+   Kubernetes::Comb::SVG::Layout (cells placed on the honeycomb) are public
+   and documented, for callers who want the data without the drawing.
+ - examples/demo.svg and examples/monitor.svg show both layouts, rendered by
+   examples/demo.pl from examples/demo.json.
