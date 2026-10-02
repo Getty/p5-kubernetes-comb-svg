@@ -8,3 +8,6 @@ Revision history for Kubernetes-Comb-SVG
  - Kubernetes::Comb::SVG::Cell reads a Comb custom resource (hash or TO_JSON
    object, array or List) into a cell, identified by namespace/name, with
    spec.dependsOn resolved into dependencies and missing.
+ - Kubernetes::Comb::SVG::Layout places cells in groups (by name, unnamed
+   last), in rows by dependency depth over all cells, on a pointy-top
+   honeycomb that wraps at the column limit; dependency cycles share a row.

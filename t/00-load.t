@@ -6,6 +6,7 @@ use Test::More;
 for (qw(
   Kubernetes::Comb::SVG
   Kubernetes::Comb::SVG::Cell
+  Kubernetes::Comb::SVG::Layout
 )) {
   use_ok($_);
 }

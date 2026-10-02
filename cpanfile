@@ -2,6 +2,7 @@ requires 'Carp';
 requires 'Moo';
 requires 'namespace::autoclean';
 requires 'Scalar::Util';
+requires 'Types::Common::Numeric';
 requires 'Types::Standard';
 
 on test => sub {
