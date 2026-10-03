@@ -10,7 +10,7 @@ use Path::Tiny;
 use Scalar::Util qw( blessed );
 use Kubernetes::Comb::SVG;
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 my $ME = 'comb-svg';
 

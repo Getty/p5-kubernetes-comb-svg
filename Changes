@@ -1,5 +1,7 @@
 Revision history for Kubernetes-Comb-SVG
 
+{{$NEXT}}
+
 0.001     2026-10-03 04:30:44Z
 
  - First release. Renders a set of Kubernetes::Comb custom resources as one

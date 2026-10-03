@@ -68,7 +68,7 @@ use Types::Common::Numeric qw( PositiveInt PositiveNum PositiveOrZeroNum );
 use Types::Standard qw( ArrayRef Bool Enum Object );
 use namespace::autoclean;
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 has cells => ( is => 'ro', isa => ArrayRef[Object], default => sub { [] } );
 
