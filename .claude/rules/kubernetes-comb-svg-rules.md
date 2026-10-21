@@ -12,7 +12,8 @@ non-trivial work; use judgment on trivial tasks. Loaded automatically at launch 
 3. **Surgical changes** — Touch only what you must. Match existing style.
 4. **Goal-driven execution** — Define success criteria, loop until verified.
 5. **Surface conflicts, don't average them** — pick one, say why, flag the other.
-6. **Read before you write** — `SPEC.md` first, then the seam you touch (`Cell` reads, `Layout` places, `SVG` draws).
+6. **Read before you write** — `SPEC.md` first, then the seam you touch (`Cell` reads, `Layout`
+   places, `SVG` draws). "Looks orthogonal" is dangerous.
 7. **Tests verify intent** — reproduce a bug before fixing it; leave a regression test.
 8. **Checkpoint after every significant step** — done / verified / left.
 9. **Fail loud** — "Tests pass" is wrong if any were skipped or the run was refused.
