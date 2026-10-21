@@ -1,9 +1,8 @@
 # Kubernetes::Comb::SVG House Rules
 
-Apply to every task in this repository unless explicitly overridden. Bias: caution over
-speed on non-trivial work; use judgment on trivial tasks. Loaded automatically at launch
-(same priority as `CLAUDE.md`). Subagents get their discipline from the skills
-force-loaded via `briefing.skills` — this file is for the orchestrating agent.
+Apply to every task in this repository unless explicitly overridden. Bias: caution over speed on
+non-trivial work; use judgment on trivial tasks. Loaded automatically at launch (same priority as
+`CLAUDE.md`); subagents get their discipline from `briefing.skills`, this file is for the main agent.
 
 ## Engineering discipline
 
@@ -13,8 +12,7 @@ force-loaded via `briefing.skills` — this file is for the orchestrating agent.
 3. **Surgical changes** — Touch only what you must. Match existing style.
 4. **Goal-driven execution** — Define success criteria, loop until verified.
 5. **Surface conflicts, don't average them** — pick one, say why, flag the other.
-6. **Read before you write** — `SPEC.md` section first, then the seam you touch
-   (`Cell` reads the CR, `Layout` places, `SVG` draws). "Looks orthogonal" is dangerous.
+6. **Read before you write** — `SPEC.md` first, then the seam you touch (`Cell` reads, `Layout` places, `SVG` draws).
 7. **Tests verify intent** — reproduce a bug before fixing it; leave a regression test.
 8. **Checkpoint after every significant step** — done / verified / left.
 9. **Fail loud** — "Tests pass" is wrong if any were skipped or the run was refused.
@@ -26,9 +24,8 @@ force-loaded via `briefing.skills` — this file is for the orchestrating agent.
 - **You can spawn subagents** (orchestrating main agent): Do NOT touch behavior-relevant
   code yourself — delegate to `kubernetes-comb-svg-worker`. Your lane: coordinate,
   inspect, plan, review diffs, run tests, edit `SPEC.md`/`CLAUDE.md` prose with the
-  maintainer. When in doubt, delegate. Why: only the `kubernetes-comb-svg-*` agents get
-  their skills force-loaded via `briefing.skills`; you would touch internals with too
-  little context.
+  maintainer. When in doubt, delegate — only the `kubernetes-comb-svg-*` agents get their
+  skills force-loaded via `briefing.skills`; you would touch internals with too little context.
 
   | Task | Agent |
   |---|---|
@@ -43,10 +40,10 @@ force-loaded via `briefing.skills` — this file is for the orchestrating agent.
 - **You cannot spawn subagents** (you ARE a `kubernetes-comb-svg-*` agent): the
   delegation lock does not apply to you — work per these rules.
 
-Behavior-relevant = anything under `lib/`, `bin/`, `t/`, `examples/`: reading the CR,
-layout, drawing, escaping, the theme, the CLI. Packaging files belong to the
-release-manager; `cpanfile` lines arrive with the code that needs them. `SPEC.md`
-changes are design changes — the maintainer's call.
+Behavior-relevant = anything under `lib/`, `bin/`, `t/`, `examples/`: reading the CR, layout,
+drawing, escaping, the theme, the CLI. Packaging belongs to the release-manager; `cpanfile`
+lines arrive with the code that needs them. `SPEC.md` changes are design changes — only the
+maintainer's call.
 
 ## Coordination — karr board (always in scope)
 
@@ -73,8 +70,8 @@ are STRICTLY forbidden without the maintainer's explicit go-ahead — even if a 
 ## Hazards — what actually goes wrong here
 
 - **Unescaped CR values.** Names, messages and label values come from a cluster and end
-  up in a web page. One value interpolated without the escape function is an injection
-  hole — review every new string that reaches the output.
+  up in a web page — one value interpolated without the escape function is an injection
+  hole, so review every new string that reaches the output.
 - **Hash order.** Perl randomises it per process; an unsorted `keys` on the way to the
   output makes the picture, and the tests, flaky.
 - **Stale `examples/demo.svg`.** It is committed and shown in the README; a change to
@@ -85,7 +82,7 @@ are STRICTLY forbidden without the maintainer's explicit go-ahead — even if a 
 
 ## Perl specifics — reference, don't restate
 
-Architecture and invariants: skill `kubernetes-comb-svg-core`. House style, module
-loading, pinning: `getty-perl-core`, `getty-perl-moo`. POD: `getty-perl-pod`. Release:
-`getty-perl-release-author-getty`, `perl-release-dist-ini`. All force-loaded for
+Architecture and invariants: skill `kubernetes-comb-svg-core`. House style, module loading,
+pinning: `getty-perl-core`, `getty-perl-moo`; POD: `getty-perl-pod`; release:
+`getty-perl-release-author-getty`, `perl-release-dist-ini`. Force-loaded for the
 `kubernetes-comb-svg-*` agents — do not duplicate here.
