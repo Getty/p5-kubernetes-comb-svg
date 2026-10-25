@@ -65,7 +65,7 @@ rows interlock.
 
 use Moo;
 use Types::Common::Numeric qw( PositiveInt PositiveNum PositiveOrZeroNum );
-use Types::Standard qw( ArrayRef Bool Enum Object );
+use Types::Standard qw( ArrayRef Bool CodeRef Enum Maybe Object );
 use namespace::autoclean;
 
 our $VERSION = '0.002';
@@ -157,6 +157,20 @@ has frame_height => ( is => 'ro', isa => PositiveOrZeroNum, default => 0 );
 
 Default C<0>, a number of at least zero. The height the caller will add around
 the content (padding, title, legend); see L</frame_width>.
+
+=cut
+
+has frame => ( is => 'ro', isa => Maybe[CodeRef] );
+
+=attr frame
+
+Optional coderef, no default. Called with the C<width> and C<height> of the
+content a column count would give and returns the width and height of the
+whole picture around it. Use it when the frame depends on the content: a
+legend that wraps into more rows the narrower the honeycomb is, a title wider
+than the honeycomb. When given it takes the place of L</frame_width> and
+L</frame_height>; like them it only counts when choosing the columns by
+L</aspect>.
 
 =cut
 
@@ -479,8 +493,10 @@ sub _packed_columns {
   my ( $best, $miss ) = ( 1 );
   for my $columns ( 1 .. $most || 1 ) {
     my ( $width, $height ) = $self->_packed_extent( $sizes, $columns, $headings );
-    my $off = abs( log( ( $width + $self->frame_width ) / ( $height + $self->frame_height ) )
-      - log( $self->aspect ) );
+    my ( $whole_width, $whole_height ) = $self->frame
+      ? $self->frame->( $width, $height )
+      : ( $width + $self->frame_width, $height + $self->frame_height );
+    my $off = abs( log( $whole_width / $whole_height ) - log( $self->aspect ) );
     ( $best, $miss ) = ( $columns, $off ) if !defined $miss || $off < $miss;
   }
   return $best;
