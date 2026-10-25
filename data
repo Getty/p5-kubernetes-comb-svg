@@ -1,0 +1,26 @@
+---
+claimed_at: 2026-10-25T02:48:09Z
+claimed_by: worker
+class: standard
+completed: 2026-10-25T02:48:09Z
+created: 2026-10-02T05:47:58Z
+id: 13
+priority: low
+started: 2026-10-25T02:32:15Z
+status: done
+tags:
+- lib
+- svg
+title: Blink and theme per group; aspect with a long title and a wrapping legend
+updated: 2026-10-25T02:48:09Z
+---
+
+Split off k12 (first consumer citiai-core, 2026-10-02), not built there. (1) blink and theme address phases only, not groups - wanted e.g. "only the group extern blinks" or a colour per group. (2) In packed layout aspect counts the legend as one row and ignores the title width: a long title or a legend that wraps into several rows makes the picture miss the target aspect. Both need a SPEC decision (§6 theme/blink, §5 packed) - maintainer call.
+
+2026-10-25 02:42 Decision (1) group addressing: one syntax in blink and theme: '@group' = every phase of the group, 'Phase@group' = one phase in it (phase = before first @). Specificity Phase@group > @group > Phase; blink entries add up. Done in the picture's own CSS: cells in a group get data-comb-group (data-group is the heading's; reusing it broke g[@data-group] queries), rules set the cell's --comb-<phase> custom property, written only for occurring groups and given keys; group name goes through a hex-escaped CSS string. Plain-phase users: CSS unchanged. Decision (2) aspect: Layout gets a 'frame' coderef (content w,h -> whole picture w,h); SVG answers it with the real title width and legend wrapped for that width, for every column count. Measured on the old lib (12 cells, 9-phase legend, 62-char title): aspect 1 got 1.633 (63% off, best by columns 2.3%); 9/16 got 1.023 (82% off, best 4.1%); 4 cells at 16/9 got 2.98 vs 2.19. After: equal to the best column count. SPEC 5/6 extended. New tests red on the old lib (behaviour failures), green now; prove -lr t/ passes (480). demo.svg and monitor.svg regenerated.
+
+2026-10-25 02:42 Done: group-addressed blink/theme, aspect counts title and wrapped legend; SPEC 5/6, POD, CLI help, Changes, demo/monitor svg updated; suite green (480).
+
+Commit 26530b9
+
+Also found: Changes uses ' - ' one-space/blank line after {{$NEXT}} like the 0.001 block, not the two-space style of getty-git-commit-style
