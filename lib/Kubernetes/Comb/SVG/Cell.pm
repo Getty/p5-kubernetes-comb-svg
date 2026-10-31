@@ -37,7 +37,7 @@ use Scalar::Util qw( blessed );
 use Types::Standard qw( ArrayRef Bool HashRef Maybe Str );
 use namespace::autoclean;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 has name => ( is => 'ro', isa => Str, required => 1 );
 

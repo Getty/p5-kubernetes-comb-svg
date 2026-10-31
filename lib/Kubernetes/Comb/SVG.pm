@@ -76,7 +76,7 @@ use Kubernetes::Comb::SVG::Cell;
 use Kubernetes::Comb::SVG::Layout;
 use namespace::autoclean;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 has combs => ( is => 'ro', isa => Any, required => 1 );
 

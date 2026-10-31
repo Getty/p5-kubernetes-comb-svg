@@ -1,5 +1,7 @@
 Revision history for Kubernetes-Comb-SVG
 
+{{$NEXT}}
+
 0.002     2026-10-31 00:31:57Z
 
  - blink and theme can address a group: '@extern' for every phase of the
