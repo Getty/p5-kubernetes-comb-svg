@@ -15,9 +15,7 @@
       "getty-git-commit-style@getty",
       "getty-git-usage@getty",
       "kanban-issues-karr-ticket@karr",
-      "kanban-issues-karr-coordination@karr",
-      "getty-perl-release-author-getty@karr",
-      "getty-perl-pod@karr"
+      "kanban-issues-karr-coordination@karr"
     ],
     "bundles": [
       "getty-cpan-dist@getty"
